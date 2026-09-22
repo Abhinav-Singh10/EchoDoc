@@ -1,0 +1,25 @@
+syntax="proto3";
+
+package collab.system.v1;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service SystemService {
+    rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfo);
+    rpc WatchEvents(google.protobuf.Empty) returns (stream ServerEvent);
+}
+
+message ServerInfo{
+  string server_id = 1;
+  string process_instance_id = 2;
+  string application_version = 3;
+  double uptime_seconds = 4;
+}
+
+message ServerEvent {
+  string process_instance_id = 1;
+  uint64 sequence = 2;
+  google.protobuf.Timestamp server_timestamp = 3;
+}
+
