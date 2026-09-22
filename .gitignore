@@ -1,0 +1,12 @@
+# macOS metadata
+.DS_Store
+
+# Python temporary files and local environments
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Frontend dependencies and build output
+node_modules/
+dist/
