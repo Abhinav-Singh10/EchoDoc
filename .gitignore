@@ -10,3 +10,6 @@ __pycache__/
 # Frontend dependencies and build output
 node_modules/
 dist/
+
+# Python code generated from protobuf definitions
+/backend/generated/
