@@ -61,3 +61,27 @@ Generated files are ignored by Git and must not be edited manually.
 
 This setup currently validates code generation and imports.
 The application server is not implemented yet.
+
+## RUN LOCALLY 
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=backend/generated python -m backend.server
+```
+open a 2nd terminal and run this for the client
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=backend/generated python -m backend.client
+```
+
+You should recieve something like this below
+```
+server_id: "app-1"
+process_instance_id: "..."
+application_version: "0.1.0"
+uptime_seconds: 8.42
+```
+
+restarting the server will change the process_instance_id each time while 
+running the client multiple times will not affect the process instance id and only the uptime will increase
