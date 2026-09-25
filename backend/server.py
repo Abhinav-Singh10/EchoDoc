@@ -1,6 +1,6 @@
 #asyncio provides Python's event loop , which schedules async work. we'll later use it to handle multiple streams while they wait b/w events 
 import asyncio
-
+import logging
 import grpc
 
 from backend.service import SystemService
@@ -30,7 +30,7 @@ async def serve():
 
 # Start accepting RPC's. await lets this corountine wait for the operation while allowing the event loop to run other ready work.
     await server.start()
-    print(f"Server listening on {address}", flush=True) # flush=True immediately flushes Python's output buffer.
+    print(f"Server listening on {address}", flush=True) # flush=True immediately flushes Python's output buffer. Needed for when we'll deploy it as aws is block buffering and not line bufferiing, due to which when deployed we may only see till Server listening on ....
     print(f"Process instance: {service.process_instance_id}", flush=True)
 
 
@@ -42,6 +42,15 @@ async def serve():
 
 # run this block when the module is executed directly, rather than when another module imports it
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        # asctime -> Human Readable time
+        # levelname -> Severity of the entry (one of these enums-> debug, info, warning, error or critical) Due to us setting logging.INFO logger.debug won't show
+        # name -> Loggers name (here it will be backend.service as logging module for imported there as __name__ is this)
+        # message -> complete message
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
+    
     try:
         # creates and manages the event loop
         asyncio.run(serve())

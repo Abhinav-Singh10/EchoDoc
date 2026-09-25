@@ -62,12 +62,15 @@ Generated files are ignored by Git and must not be edited manually.
 This setup currently validates code generation and imports.
 The application server is not implemented yet.
 
-## RUN LOCALLY 
+## RUN LOCALLY
+
+1. Unary Rpc GetServerInfo
 
 ```bash
 source .venv/bin/activate
 PYTHONPATH=backend/generated python -m backend.server
 ```
+
 open a 2nd terminal and run this for the client
 
 ```bash
@@ -76,6 +79,7 @@ PYTHONPATH=backend/generated python -m backend.client
 ```
 
 You should recieve something like this below
+
 ```
 server_id: "app-1"
 process_instance_id: "..."
@@ -85,3 +89,18 @@ uptime_seconds: 8.42
 
 restarting the server will change the process_instance_id each time while 
 running the client multiple times will not affect the process instance id and only the uptime will increase
+
+1. Response Stream RPC WatchEvents 
+
+inside the server venv, run it once. Keep it running
+
+```
+PYTHONPATH=backend/generated python -m backend.server
+```
+
+add 2 client terminals and run 
+
+```
+PYTHONPATH=backend/generated python -m backend.watch_client
+```
+
