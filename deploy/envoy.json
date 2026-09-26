@@ -1,0 +1,116 @@
+{
+  "static_resources": {
+    "listeners": [
+      {
+        "name": "browser_listener",
+        "address": {
+          "socket_address": {
+            "address": "127.0.0.1",
+            "port_value": 8080
+          }
+        },
+        "filter_chains": [
+          {
+            "filters": [
+              {
+                "name": "envoy.filters.network.http_connection_manager",
+                "typed_config": {
+                  "@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+                  "stat_prefix": "browser_rpc",
+                  "codec_type": "AUTO",
+                  "stream_idle_timeout": "60s",
+                  "route_config": {
+                    "name": "rpc_routes",
+                    "virtual_hosts": [
+                      {
+                        "name": "python_service",
+                        "domains": ["*"],
+                        "typed_per_filter_config": {
+                          "envoy.filters.http.cors": {
+                            "@type": "type.googleapis.com/envoy.extensions.filters.http.cors.v3.CorsPolicy",
+                            "allow_origin_string_match": [
+                              { "exact": "http://127.0.0.1:5173" }
+                            ],
+                            "allow_methods": "POST, OPTIONS",
+                            "allow_headers": "content-type,x-grpc-web,x-user-agent,grpc-timeout",
+                            "expose_headers": "grpc-status,grpc-message,grpc-status-details-bin",
+                            "max_age": "600"
+                          }
+                        },
+                        "routes": [
+                          {
+                            "match": {
+                              "prefix": "/collab.system.v1.SystemService/"
+                            },
+                            "route": {
+                              "cluster": "python_backend",
+                              "timeout": "0s"
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  "http_filters": [
+                    {
+                      "name": "envoy.filters.http.grpc_web",
+                      "typed_config": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
+                      }
+                    },
+                    {
+                      "name": "envoy.filters.http.cors",
+                      "typed_config": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors"
+                      }
+                    },
+                    {
+                      "name": "envoy.filters.http.router",
+                      "typed_config": {
+                        "@type": "type.googleapis.com/envoy.extensions.filters.http.router.v3.Router"
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "clusters": [
+      {
+        "name": "python_backend",
+        "type": "STATIC",
+        "connect_timeout": "2s",
+        "typed_extension_protocol_options": {
+          "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
+            "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",
+            "explicit_http_config": {
+              "http2_protocol_options": {}
+            }
+          }
+        },
+        "load_assignment": {
+          "cluster_name": "python_backend",
+          "endpoints": [
+            {
+              "lb_endpoints": [
+                {
+                  "endpoint": {
+                    "address": {
+                      "socket_address": {
+                        "address": "127.0.0.1",
+                        "port_value": 50051
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

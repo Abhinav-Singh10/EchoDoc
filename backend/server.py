@@ -10,7 +10,7 @@ from collab.system.v1 import system_pb2_grpc
 async def serve():
     # These create 2 diff objects. 1) server -> manages RPC conncections and dispatches incoming calls.
     # 2) service -> contains our app logic and the state initialized in __int__
-    # We create the service once here, so req share its PID (process id) and startup time
+    # We create the service once here, so req share its app generated process instance id (process id) and startup time
 
     server = grpc.aio.server()
     service = SystemService()

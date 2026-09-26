@@ -40,14 +40,14 @@ class SystemService(system_pb2_grpc.SystemServiceServicer):
 
     async def WatchEvents(self, request, context):
         subscription_id = str(uuid.uuid4()) # Distinguishes client calls
-        sequence = 1 # number of req. in the same call
+        sequence = 1 # number of response events. in the same call/sub
 
         logger.info("Stream started: subscription=%s", subscription_id)
 
         try:
             while True:
                 timestamp = Timestamp() #Calander based
-                timestamp.GetCurrentTime() # Monotonic, unaffected by calander clock
+                timestamp.GetCurrentTime() #unaffected by calander clock
 
                 # Using yeild instead of return cause its a responese stream 
                 yield system_pb2.ServerEvent(

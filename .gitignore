@@ -13,3 +13,4 @@ dist/
 
 # Python code generated from protobuf definitions
 /backend/generated/
+/deliverables

@@ -14,6 +14,50 @@ and server-streaming RPCs.
 - Backend: Python implements the gRPC service.
 - Deployment: currently runs locally on macOS; Docker Compose is deferred.
 
+## Frontend and gateway configuration
+
+We are using JSON configuration files in this project.
+
+From `frontend/`, install the recorded dependencies and generate the browser definitions:
+
+```bash
+npm ci
+npm run generate
+npm run build
+```
+
+The `generate` script explicitly loads `frontend/buf.gen.json` and reads the shared
+definitions from `proto/`. Generated TypeScript goes into `frontend/src/gen/`.
+
+Install the native macOS gateway:
+
+```bash
+brew install envoy
+```
+
+From the repository root, validate its JSON configuration:
+
+```bash
+envoy --mode validate -c deploy/envoy.json
+```
+
+Start the Python backend using the command below, then start Envoy in a second terminal:
+
+```bash
+envoy -c deploy/envoy.json --log-level info
+```
+
+In a third terminal, from `frontend/`, start the page:
+
+```bash
+npm run dev
+```
+
+Open `http://127.0.0.1:5173`. The browser RPC client uses
+`VITE_RPC_BASE_URL` from `frontend/.env.development` to reach Envoy on port `8080`.
+Envoy forwards native gRPC over HTTP/2 to Python on `127.0.0.1:50051`.
+The gateway permits the development origin `http://127.0.0.1:5173`.
+
 ## Local backend setup
 
 Prerequisite: Python 3.12. On macOS with Homebrew:
@@ -55,12 +99,7 @@ Verify that the generated modules can be imported:
 PYTHONPATH=backend/generated python -c "from collab.system.v1 import system_pb2, system_pb2_grpc; print('Generated imports OK')"
 ```
 
-Reactivate the environment in each new terminal session.
-Regenerate the Python files after changing the protobuf definitions.
-Generated files are ignored by Git and must not be edited manually.
 
-This setup currently validates code generation and imports.
-The application server is not implemented yet.
 
 ## RUN LOCALLY
 
@@ -90,7 +129,7 @@ uptime_seconds: 8.42
 restarting the server will change the process_instance_id each time while 
 running the client multiple times will not affect the process instance id and only the uptime will increase
 
-1. Response Stream RPC WatchEvents 
+1. Response Stream RPC WatchEvents
 
 inside the server venv, run it once. Keep it running
 
