@@ -6,6 +6,9 @@ import grpc
 from backend.service import SystemService
 from collab.system.v1 import system_pb2_grpc
 
+from backend.auth_service import AuthService
+from collab.auth.v1 import auth_pb2_grpc
+
 
 async def serve():
     # These create 2 diff objects. 1) server -> manages RPC conncections and dispatches incoming calls.
@@ -14,10 +17,17 @@ async def serve():
 
     server = grpc.aio.server()
     service = SystemService()
+    auth_service = AuthService()
+
 
     # This generated function registers your impl. with the server. It connects the incoming RPC method names to your python methods and configures message serialization
     system_pb2_grpc.add_SystemServiceServicer_to_server(
         service, server
+    )
+
+    
+    auth_pb2_grpc.add_AuthServiceServicer_to_server(
+        auth_service, server
     )
 
     #127.0.0.1 is the loopback address: clients on this Mac can connect
