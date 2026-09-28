@@ -1,8 +1,9 @@
 import asyncio
-from getpass import getpass
-
 import grpc
 
+from pycrdt import Doc, Text
+from getpass import getpass
+from collab.document.v1 import document_pb2, document_pb2_grpc
 from collab.auth.v1 import auth_pb2, auth_pb2_grpc
 from google.protobuf.empty_pb2 import Empty
 from collab.document.v1 import document_pb2_grpc
@@ -45,12 +46,32 @@ async def main():
 
         print("Saved documents:", len(result.documents))
 
+
         for document in result.documents:
             print(
                 document.document_id,
                 document.title,
                 f"revision={document.revision}",
             )
+
+        if result.documents:
+            selected = result.documents[0]
+
+            loaded = await documents.GetDocument(
+                    document_pb2.GetDocumentRequest(
+                    document_id=selected.document_id,
+                    ),
+                    metadata=metadata,
+                    timeout=5,
+            )
+
+            local_doc = Doc()
+            local_doc.apply_update(loaded.state)
+            text = local_doc.get("content", type=Text)
+
+            print("Opened:", loaded.document.title)
+            print("Text:", repr(str(text)))
+            print("Revision:", loaded.document.revision)
 
         user = await stub.GetCurrentUser(
             Empty(),

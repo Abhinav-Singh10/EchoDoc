@@ -79,3 +79,30 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         return document_pb2.ListDocumentsResponse(
             documents=documents,
         )
+    
+    async def GetDocument(self, request, context):
+        await self.auth.require_session(context)
+
+        row = self.db.execute(
+            """
+            SELECT id, title, state, revision
+            FROM documents
+            WHERE id = ?
+            """,
+            (request.document_id,),
+        ).fetchone()
+
+        if row is None:
+            await context.abort(
+                grpc.StatusCode.NOT_FOUND,
+                "Document not found",
+            )
+
+        return document_pb2.GetDocumentResponse(
+            document=document_pb2.DocumentInfo(
+                document_id=row["id"],
+                title=row["title"],
+                revision=row["revision"],
+            ),
+            state=row["state"],
+        )
