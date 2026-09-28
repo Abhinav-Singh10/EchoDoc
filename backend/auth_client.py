@@ -5,7 +5,7 @@ import grpc
 
 from collab.auth.v1 import auth_pb2, auth_pb2_grpc
 from google.protobuf.empty_pb2 import Empty
-from collab.document.v1 import document_pb2, document_pb2_grpc
+from collab.document.v1 import document_pb2_grpc
 
 async def main():
     username = input("Username: ")
@@ -37,15 +37,20 @@ async def main():
 
         documents = document_pb2_grpc.DocumentServiceStub(channel)
 
-        document = await documents.CreateDocument(
-            document_pb2.CreateDocumentRequest(title="My first shared note"),
+        result = await documents.ListDocuments(
+            Empty(),
             metadata=metadata,
             timeout=5,
         )
 
-        print("Created document:", document.document_id)
-        print("Title:", document.title)
-        print("Revision:", document.revision)
+        print("Saved documents:", len(result.documents))
+
+        for document in result.documents:
+            print(
+                document.document_id,
+                document.title,
+                f"revision={document.revision}",
+            )
 
         user = await stub.GetCurrentUser(
             Empty(),
