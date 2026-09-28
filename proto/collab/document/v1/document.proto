@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package collab.document.v1;
+
+import "google/protobuf/empty.proto";
+
+service DocumentService {
+  rpc CreateDocument(CreateDocumentRequest) returns (DocumentInfo);
+  rpc ListDocuments(google.protobuf.Empty) returns (ListDocumentsResponse);
+  rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
+  rpc SubmitUpdate(SubmitUpdateRequest) returns (SubmitUpdateResponse);
+}
+
+message DocumentInfo {
+  string document_id = 1;
+  string title = 2;
+  uint64 revision = 3;
+}
+
+message CreateDocumentRequest {
+  string title = 1;
+}
+
+message ListDocumentsResponse {
+  repeated DocumentInfo documents = 1;
+}
+
+message GetDocumentRequest {
+  string document_id = 1;
+}
+
+message GetDocumentResponse {
+  DocumentInfo document = 1;
+  bytes state = 2;
+}
+
+message SubmitUpdateRequest {
+  string document_id = 1;
+  string request_id = 2;
+  bytes update = 3;
+}
+
+message SubmitUpdateResponse {
+  uint64 revision = 1;
+}

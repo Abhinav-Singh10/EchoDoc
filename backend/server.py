@@ -5,7 +5,8 @@ import grpc
 
 from backend.service import SystemService
 from collab.system.v1 import system_pb2_grpc
-
+from backend.document_service import DocumentService
+from collab.document.v1 import document_pb2_grpc
 from backend.auth_service import AuthService
 from collab.auth.v1 import auth_pb2_grpc
 
@@ -18,7 +19,11 @@ async def serve():
     server = grpc.aio.server()
     service = SystemService()
     auth_service = AuthService()
+    document_service = DocumentService(auth_service)
 
+    document_pb2_grpc.add_DocumentServiceServicer_to_server(
+        document_service, server
+    )
 
     # This generated function registers your impl. with the server. It connects the incoming RPC method names to your python methods and configures message serialization
     system_pb2_grpc.add_SystemServiceServicer_to_server(
