@@ -49,6 +49,15 @@
                           },
                           {
                             "match": {
+                              "path": "/collab.auth.v1.AuthService/WatchSession"
+                            },
+                            "route": {
+                              "cluster": "python_backend",
+                              "timeout": "0s"
+                            }
+                          },
+                          {
+                            "match": {
                               "prefix": "/collab.auth.v1.AuthService/"
                             },
                             "route": {

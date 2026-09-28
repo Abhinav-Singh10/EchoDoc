@@ -1,7 +1,7 @@
-import { useState } from 'react'
 import { Code, ConnectError } from '@connectrpc/connect'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 import { authClient } from './rpc'
+import { useEffect, useState } from 'react'
 
 function LoginPanel() {
   const [username, setUsername] = useState('')
@@ -10,8 +10,66 @@ function LoginPanel() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const token = session?.sessionToken
 
-  async function login() {
+useEffect(() => {
+  if (!token) return
+
+  const controller = new AbortController()
+
+  async function watchSession() {
+    try {
+      const stream = authClient.watchSession(
+        {},
+        {
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+          signal: controller.signal,
+        },
+      )
+
+      for await (const user of stream) {
+        if (controller.signal.aborted) return
+        setNotice(`Session active for ${user.username}.`)
+      }
+
+      if (!controller.signal.aborted) {
+        setError('Session stream ended. Log in again.')
+      }
+    } catch (err) {
+      if (controller.signal.aborted) return
+
+      if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+        setError('Your session expired or is no longer valid. Log in again.')
+      } else {
+        setError('Session connection lost. Check Python and Envoy, then log in.')
+      }
+    } finally {
+      if (!controller.signal.aborted) {
+        setSession(null)
+        setNotice('')
+      }
+    }
+  }
+
+  function leavePage() {
+    controller.abort()
+    setSession(null)
+    setNotice('')
+  }
+
+  watchSession()
+  window.addEventListener('pagehide', leavePage)
+
+  return () => {
+    controller.abort()
+    window.removeEventListener('pagehide', leavePage)
+  }
+}, [token])
+
+
+async function login() {
     setBusy(true)
     setError('')
     setNotice('')

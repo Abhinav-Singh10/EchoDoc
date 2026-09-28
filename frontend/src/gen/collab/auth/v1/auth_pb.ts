@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file collab/auth/v1/auth.proto.
  */
 export const file_collab_auth_v1_auth: GenFile = /*@__PURE__*/
-  fileDesc("Chljb2xsYWIvYXV0aC92MS9hdXRoLnByb3RvEg5jb2xsYWIuYXV0aC52MSIyCgxMb2dpblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiKQoEVXNlchIPCgd1c2VyX2lkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJInoKDUxvZ2luUmVzcG9uc2USFQoNc2Vzc2lvbl90b2tlbhgBIAEoCRIiCgR1c2VyGAIgASgLMhQuY29sbGFiLmF1dGgudjEuVXNlchIuCgpleHBpcmVzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDLNAQoLQXV0aFNlcnZpY2USRAoFTG9naW4SHC5jb2xsYWIuYXV0aC52MS5Mb2dpblJlcXVlc3QaHS5jb2xsYWIuYXV0aC52MS5Mb2dpblJlc3BvbnNlEj4KDkdldEN1cnJlbnRVc2VyEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhQuY29sbGFiLmF1dGgudjEuVXNlchI4CgZMb2dvdXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHliBnByb3RvMw", [file_google_protobuf_empty, file_google_protobuf_timestamp]);
+  fileDesc("Chljb2xsYWIvYXV0aC92MS9hdXRoLnByb3RvEg5jb2xsYWIuYXV0aC52MSIyCgxMb2dpblJlcXVlc3QSEAoIdXNlcm5hbWUYASABKAkSEAoIcGFzc3dvcmQYAiABKAkiKQoEVXNlchIPCgd1c2VyX2lkGAEgASgJEhAKCHVzZXJuYW1lGAIgASgJInoKDUxvZ2luUmVzcG9uc2USFQoNc2Vzc2lvbl90b2tlbhgBIAEoCRIiCgR1c2VyGAIgASgLMhQuY29sbGFiLmF1dGgudjEuVXNlchIuCgpleHBpcmVzX2F0GAMgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcDKNAgoLQXV0aFNlcnZpY2USRAoFTG9naW4SHC5jb2xsYWIuYXV0aC52MS5Mb2dpblJlcXVlc3QaHS5jb2xsYWIuYXV0aC52MS5Mb2dpblJlc3BvbnNlEj4KDkdldEN1cnJlbnRVc2VyEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhQuY29sbGFiLmF1dGgudjEuVXNlchI4CgZMb2dvdXQSFi5nb29nbGUucHJvdG9idWYuRW1wdHkaFi5nb29nbGUucHJvdG9idWYuRW1wdHkSPgoMV2F0Y2hTZXNzaW9uEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhQuY29sbGFiLmF1dGgudjEuVXNlcjABYgZwcm90bzM", [file_google_protobuf_empty, file_google_protobuf_timestamp]);
 
 /**
  * @generated from message collab.auth.v1.LoginRequest
@@ -112,6 +112,14 @@ export const AuthService: GenService<{
     methodKind: "unary";
     input: typeof EmptySchema;
     output: typeof EmptySchema;
+  },
+  /**
+   * @generated from rpc collab.auth.v1.AuthService.WatchSession
+   */
+  watchSession: {
+    methodKind: "server_streaming";
+    input: typeof EmptySchema;
+    output: typeof UserSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_collab_auth_v1_auth, 0);

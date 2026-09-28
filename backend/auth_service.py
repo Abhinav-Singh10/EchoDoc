@@ -102,3 +102,12 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
         token, _ = await self.require_session(context)
         del self.sessions[token]
         return Empty()
+
+    async def WatchSession(self, request, context):
+        try:
+            while True:
+                _, session = await self.require_session(context)
+                yield session["user"]
+                await asyncio.sleep(1)
+        finally:
+            print("WatchSession ended", flush=True)
