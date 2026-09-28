@@ -32,7 +32,7 @@
                               { "exact": "http://127.0.0.1:5173" }
                             ],
                             "allow_methods": "POST, OPTIONS",
-                            "allow_headers": "content-type,x-grpc-web,x-user-agent,grpc-timeout",
+                            "allow_headers": "content-type,x-grpc-web,x-user-agent,grpc-timeout,authorization",
                             "expose_headers": "grpc-status,grpc-message,grpc-status-details-bin",
                             "max_age": "600"
                           }
@@ -45,6 +45,15 @@
                             "route": {
                               "cluster": "python_backend",
                               "timeout": "0s"
+                            }
+                          },
+                          {
+                            "match": {
+                              "prefix": "/collab.auth.v1.AuthService/"
+                            },
+                            "route": {
+                              "cluster": "python_backend",
+                              "timeout": "5s"
                             }
                           }
                         ]
