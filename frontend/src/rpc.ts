@@ -4,11 +4,7 @@ import { SystemService } from './gen/collab/system/v1/system_pb'
 import { AuthService } from './gen/collab/auth/v1/auth_pb'
 import { DocumentService } from './gen/collab/document/v1/document_pb'
 
-const baseUrl = import.meta.env.VITE_RPC_BASE_URL
-
-if (!baseUrl) {
-  throw new Error('VITE_RPC_BASE_URL is not configured')
-}
+const baseUrl = import.meta.env.VITE_RPC_BASE_URL || `${window.location.origin}/rpc`
 
 // Transport object know the server add, and how to send grpc-web requests
 const transport = createGrpcWebTransport({
