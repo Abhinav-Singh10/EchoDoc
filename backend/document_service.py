@@ -1,7 +1,9 @@
 import sqlite3
 import uuid
 import grpc
+import asyncio
 
+from collections import defaultdict
 from pycrdt import Doc, Text
 from collab.document.v1 import document_pb2
 from pathlib import Path
@@ -11,6 +13,7 @@ from collab.document.v1 import document_pb2_grpc
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
     def __init__(self, auth):
         self.auth = auth
+        self.locks = defaultdict(asyncio.Lock)
 
         database = Path("data/documents.sqlite3")
         database.parent.mkdir(parents=True, exist_ok=True)
@@ -128,85 +131,87 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 "Request ID is required",
             )
 
-        row = self.db.execute(
-            "SELECT state, revision FROM documents WHERE id = ?",
-            (request.document_id,),
-        ).fetchone()
+        async with self.locks[request.document_id]:
+            row = self.db.execute(
+                "SELECT state, revision FROM documents WHERE id = ?",
+                (request.document_id,),
+            ).fetchone()
 
-        if row is None:
-            await context.abort(
-                grpc.StatusCode.NOT_FOUND,
-                "Document not found",
-            )
-
-        previous = self.db.execute(
-            """
-            SELECT author, update_bytes, revision
-            FROM updates
-            WHERE document_id = ? AND request_id = ?
-            """,
-            (request.document_id, request.request_id),
-        ).fetchone()
-
-        if previous is not None:
-            if (
-                previous["author"] != author
-                or previous["update_bytes"] != request.update
-            ):
+            if row is None:
                 await context.abort(
-                    grpc.StatusCode.ALREADY_EXISTS,
-                    "Request ID was already used for a different update",
+                    grpc.StatusCode.NOT_FOUND,
+                    "Document not found",
+                )
+
+            previous = self.db.execute(
+                """
+                SELECT author, update_bytes, revision
+                FROM updates
+                WHERE document_id = ? AND request_id = ?
+                """,
+                (request.document_id, request.request_id),
+            ).fetchone()
+
+            if previous is not None:
+                if (
+                    previous["author"] != author
+                    or previous["update_bytes"] != request.update
+                ):
+                    await context.abort(
+                        grpc.StatusCode.ALREADY_EXISTS,
+                        "Request ID was already used for a different update",
+                    )
+
+                return document_pb2.SubmitUpdateResponse(
+                    revision=previous["revision"],
+                )
+
+            doc = Doc()
+            doc.apply_update(row["state"])
+
+            try:
+                doc.apply_update(request.update)
+            except Exception:
+                await context.abort(
+                    grpc.StatusCode.INVALID_ARGUMENT,
+                    "Invalid CRDT update",
+                )
+
+            revision = row["revision"] + 1
+
+            try:
+                with self.db:
+                    self.db.execute(
+                        """
+                        UPDATE documents
+                        SET state = ?, revision = ?
+                        WHERE id = ?
+                        """,
+                        (doc.get_update(), revision, request.document_id),
+                    )
+
+                    self.db.execute(
+                        """
+                        INSERT INTO updates (
+                            document_id, request_id, author,
+                            update_bytes, revision
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                        """,
+                        (
+                            request.document_id,
+                            request.request_id,
+                            author,
+                            request.update,
+                            revision,
+                        ),
+                    )
+            except sqlite3.Error:
+                await context.abort(
+                    grpc.StatusCode.INTERNAL,
+                    "Could not save the document",
                 )
 
             return document_pb2.SubmitUpdateResponse(
-                revision=previous["revision"],
+                revision=revision,
             )
-
-        doc = Doc()
-        doc.apply_update(row["state"])
-
-        try:
-            doc.apply_update(request.update)
-        except Exception:
-            await context.abort(
-                grpc.StatusCode.INVALID_ARGUMENT,
-                "Invalid CRDT update",
-            )
-
-        revision = row["revision"] + 1
-
-        try:
-            with self.db:
-                self.db.execute(
-                    """
-                    UPDATE documents
-                    SET state = ?, revision = ?
-                    WHERE id = ?
-                    """,
-                    (doc.get_update(), revision, request.document_id),
-                )
-                self.db.execute(
-                    """
-                    INSERT INTO updates (
-                        document_id, request_id, author,
-                        update_bytes, revision
-                    )
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        request.document_id,
-                        request.request_id,
-                        author,
-                        request.update,
-                        revision,
-                    ),
-                )
-        except sqlite3.Error:
-            await context.abort(
-                grpc.StatusCode.INTERNAL,
-                "Could not save the document",
-            )
-
-        return document_pb2.SubmitUpdateResponse(
-            revision=revision,
-        )

@@ -87,12 +87,13 @@ async def main():
                 )
 
                 try:
-                    saved = await documents.SubmitUpdate(
-                        request, metadata=metadata, timeout=5,
-                    )
-
-                    repeated = await documents.SubmitUpdate(
-                        request, metadata=metadata, timeout=5,
+                    saved, repeated = await asyncio.gather(
+                        documents.SubmitUpdate(
+                            request, metadata=metadata, timeout=5,
+                        ),
+                        documents.SubmitUpdate(
+                            request, metadata=metadata, timeout=5,
+                        ),
                     )
 
                     current = await documents.GetDocument(
