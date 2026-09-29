@@ -10,6 +10,7 @@ service DocumentService {
   rpc GetDocument(GetDocumentRequest) returns (GetDocumentResponse);
   rpc SubmitUpdate(SubmitUpdateRequest) returns (SubmitUpdateResponse);
   rpc WatchDocument(WatchDocumentRequest) returns (stream DocumentEvent);
+  rpc UpdatePresence(PresenceRequest) returns (google.protobuf.Empty);
 }
 
 message DocumentInfo {
@@ -51,8 +52,22 @@ message WatchDocumentRequest {
 }
 
 message DocumentEvent {
+  // snapshot, update, or presence
   string kind = 1;
   bytes update = 2;
   uint64 revision = 3;
   string request_id = 4;
+  repeated Presence users = 5;
+}
+
+message PresenceRequest {
+  string document_id = 1;
+  string connection_id = 2;
+  bool editing = 3;
+}
+
+message Presence {
+  string connection_id = 1;
+  string username = 2;
+  bool editing = 3;
 }

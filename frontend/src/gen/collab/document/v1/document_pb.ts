@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file collab/document/v1/document.proto.
  */
 export const file_collab_document_v1_document: GenFile = /*@__PURE__*/
-  fileDesc("CiFjb2xsYWIvZG9jdW1lbnQvdjEvZG9jdW1lbnQucHJvdG8SEmNvbGxhYi5kb2N1bWVudC52MSJECgxEb2N1bWVudEluZm8SEwoLZG9jdW1lbnRfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIcmV2aXNpb24YAyABKAQiJgoVQ3JlYXRlRG9jdW1lbnRSZXF1ZXN0Eg0KBXRpdGxlGAEgASgJIkwKFUxpc3REb2N1bWVudHNSZXNwb25zZRIzCglkb2N1bWVudHMYASADKAsyIC5jb2xsYWIuZG9jdW1lbnQudjEuRG9jdW1lbnRJbmZvIikKEkdldERvY3VtZW50UmVxdWVzdBITCgtkb2N1bWVudF9pZBgBIAEoCSJYChNHZXREb2N1bWVudFJlc3BvbnNlEjIKCGRvY3VtZW50GAEgASgLMiAuY29sbGFiLmRvY3VtZW50LnYxLkRvY3VtZW50SW5mbxINCgVzdGF0ZRgCIAEoDCJOChNTdWJtaXRVcGRhdGVSZXF1ZXN0EhMKC2RvY3VtZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSDgoGdXBkYXRlGAMgASgMIigKFFN1Ym1pdFVwZGF0ZVJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgEIkIKFFdhdGNoRG9jdW1lbnRSZXF1ZXN0EhMKC2RvY3VtZW50X2lkGAEgASgJEhUKDWNvbm5lY3Rpb25faWQYAiABKAkiUwoNRG9jdW1lbnRFdmVudBIMCgRraW5kGAEgASgJEg4KBnVwZGF0ZRgCIAEoDBIQCghyZXZpc2lvbhgDIAEoBBISCgpyZXF1ZXN0X2lkGAQgASgJMucDCg9Eb2N1bWVudFNlcnZpY2USXQoOQ3JlYXRlRG9jdW1lbnQSKS5jb2xsYWIuZG9jdW1lbnQudjEuQ3JlYXRlRG9jdW1lbnRSZXF1ZXN0GiAuY29sbGFiLmRvY3VtZW50LnYxLkRvY3VtZW50SW5mbxJSCg1MaXN0RG9jdW1lbnRzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GikuY29sbGFiLmRvY3VtZW50LnYxLkxpc3REb2N1bWVudHNSZXNwb25zZRJeCgtHZXREb2N1bWVudBImLmNvbGxhYi5kb2N1bWVudC52MS5HZXREb2N1bWVudFJlcXVlc3QaJy5jb2xsYWIuZG9jdW1lbnQudjEuR2V0RG9jdW1lbnRSZXNwb25zZRJhCgxTdWJtaXRVcGRhdGUSJy5jb2xsYWIuZG9jdW1lbnQudjEuU3VibWl0VXBkYXRlUmVxdWVzdBooLmNvbGxhYi5kb2N1bWVudC52MS5TdWJtaXRVcGRhdGVSZXNwb25zZRJeCg1XYXRjaERvY3VtZW50EiguY29sbGFiLmRvY3VtZW50LnYxLldhdGNoRG9jdW1lbnRSZXF1ZXN0GiEuY29sbGFiLmRvY3VtZW50LnYxLkRvY3VtZW50RXZlbnQwAWIGcHJvdG8z", [file_google_protobuf_empty]);
+  fileDesc("CiFjb2xsYWIvZG9jdW1lbnQvdjEvZG9jdW1lbnQucHJvdG8SEmNvbGxhYi5kb2N1bWVudC52MSJECgxEb2N1bWVudEluZm8SEwoLZG9jdW1lbnRfaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEAoIcmV2aXNpb24YAyABKAQiJgoVQ3JlYXRlRG9jdW1lbnRSZXF1ZXN0Eg0KBXRpdGxlGAEgASgJIkwKFUxpc3REb2N1bWVudHNSZXNwb25zZRIzCglkb2N1bWVudHMYASADKAsyIC5jb2xsYWIuZG9jdW1lbnQudjEuRG9jdW1lbnRJbmZvIikKEkdldERvY3VtZW50UmVxdWVzdBITCgtkb2N1bWVudF9pZBgBIAEoCSJYChNHZXREb2N1bWVudFJlc3BvbnNlEjIKCGRvY3VtZW50GAEgASgLMiAuY29sbGFiLmRvY3VtZW50LnYxLkRvY3VtZW50SW5mbxINCgVzdGF0ZRgCIAEoDCJOChNTdWJtaXRVcGRhdGVSZXF1ZXN0EhMKC2RvY3VtZW50X2lkGAEgASgJEhIKCnJlcXVlc3RfaWQYAiABKAkSDgoGdXBkYXRlGAMgASgMIigKFFN1Ym1pdFVwZGF0ZVJlc3BvbnNlEhAKCHJldmlzaW9uGAEgASgEIkIKFFdhdGNoRG9jdW1lbnRSZXF1ZXN0EhMKC2RvY3VtZW50X2lkGAEgASgJEhUKDWNvbm5lY3Rpb25faWQYAiABKAkigAEKDURvY3VtZW50RXZlbnQSDAoEa2luZBgBIAEoCRIOCgZ1cGRhdGUYAiABKAwSEAoIcmV2aXNpb24YAyABKAQSEgoKcmVxdWVzdF9pZBgEIAEoCRIrCgV1c2VycxgFIAMoCzIcLmNvbGxhYi5kb2N1bWVudC52MS5QcmVzZW5jZSJOCg9QcmVzZW5jZVJlcXVlc3QSEwoLZG9jdW1lbnRfaWQYASABKAkSFQoNY29ubmVjdGlvbl9pZBgCIAEoCRIPCgdlZGl0aW5nGAMgASgIIkQKCFByZXNlbmNlEhUKDWNvbm5lY3Rpb25faWQYASABKAkSEAoIdXNlcm5hbWUYAiABKAkSDwoHZWRpdGluZxgDIAEoCDK2BAoPRG9jdW1lbnRTZXJ2aWNlEl0KDkNyZWF0ZURvY3VtZW50EikuY29sbGFiLmRvY3VtZW50LnYxLkNyZWF0ZURvY3VtZW50UmVxdWVzdBogLmNvbGxhYi5kb2N1bWVudC52MS5Eb2N1bWVudEluZm8SUgoNTGlzdERvY3VtZW50cxIWLmdvb2dsZS5wcm90b2J1Zi5FbXB0eRopLmNvbGxhYi5kb2N1bWVudC52MS5MaXN0RG9jdW1lbnRzUmVzcG9uc2USXgoLR2V0RG9jdW1lbnQSJi5jb2xsYWIuZG9jdW1lbnQudjEuR2V0RG9jdW1lbnRSZXF1ZXN0GicuY29sbGFiLmRvY3VtZW50LnYxLkdldERvY3VtZW50UmVzcG9uc2USYQoMU3VibWl0VXBkYXRlEicuY29sbGFiLmRvY3VtZW50LnYxLlN1Ym1pdFVwZGF0ZVJlcXVlc3QaKC5jb2xsYWIuZG9jdW1lbnQudjEuU3VibWl0VXBkYXRlUmVzcG9uc2USXgoNV2F0Y2hEb2N1bWVudBIoLmNvbGxhYi5kb2N1bWVudC52MS5XYXRjaERvY3VtZW50UmVxdWVzdBohLmNvbGxhYi5kb2N1bWVudC52MS5Eb2N1bWVudEV2ZW50MAESTQoOVXBkYXRlUHJlc2VuY2USIy5jb2xsYWIuZG9jdW1lbnQudjEuUHJlc2VuY2VSZXF1ZXN0GhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5YgZwcm90bzM", [file_google_protobuf_empty]);
 
 /**
  * @generated from message collab.document.v1.DocumentInfo
@@ -185,6 +185,8 @@ export const WatchDocumentRequestSchema: GenMessage<WatchDocumentRequest> = /*@_
  */
 export type DocumentEvent = Message<"collab.document.v1.DocumentEvent"> & {
   /**
+   * snapshot, update, or presence
+   *
    * @generated from field: string kind = 1;
    */
   kind: string;
@@ -203,6 +205,11 @@ export type DocumentEvent = Message<"collab.document.v1.DocumentEvent"> & {
    * @generated from field: string request_id = 4;
    */
   requestId: string;
+
+  /**
+   * @generated from field: repeated collab.document.v1.Presence users = 5;
+   */
+  users: Presence[];
 };
 
 /**
@@ -211,6 +218,60 @@ export type DocumentEvent = Message<"collab.document.v1.DocumentEvent"> & {
  */
 export const DocumentEventSchema: GenMessage<DocumentEvent> = /*@__PURE__*/
   messageDesc(file_collab_document_v1_document, 8);
+
+/**
+ * @generated from message collab.document.v1.PresenceRequest
+ */
+export type PresenceRequest = Message<"collab.document.v1.PresenceRequest"> & {
+  /**
+   * @generated from field: string document_id = 1;
+   */
+  documentId: string;
+
+  /**
+   * @generated from field: string connection_id = 2;
+   */
+  connectionId: string;
+
+  /**
+   * @generated from field: bool editing = 3;
+   */
+  editing: boolean;
+};
+
+/**
+ * Describes the message collab.document.v1.PresenceRequest.
+ * Use `create(PresenceRequestSchema)` to create a new message.
+ */
+export const PresenceRequestSchema: GenMessage<PresenceRequest> = /*@__PURE__*/
+  messageDesc(file_collab_document_v1_document, 9);
+
+/**
+ * @generated from message collab.document.v1.Presence
+ */
+export type Presence = Message<"collab.document.v1.Presence"> & {
+  /**
+   * @generated from field: string connection_id = 1;
+   */
+  connectionId: string;
+
+  /**
+   * @generated from field: string username = 2;
+   */
+  username: string;
+
+  /**
+   * @generated from field: bool editing = 3;
+   */
+  editing: boolean;
+};
+
+/**
+ * Describes the message collab.document.v1.Presence.
+ * Use `create(PresenceSchema)` to create a new message.
+ */
+export const PresenceSchema: GenMessage<Presence> = /*@__PURE__*/
+  messageDesc(file_collab_document_v1_document, 10);
 
 /**
  * @generated from service collab.document.v1.DocumentService
@@ -255,6 +316,14 @@ export const DocumentService: GenService<{
     methodKind: "server_streaming";
     input: typeof WatchDocumentRequestSchema;
     output: typeof DocumentEventSchema;
+  },
+  /**
+   * @generated from rpc collab.document.v1.DocumentService.UpdatePresence
+   */
+  updatePresence: {
+    methodKind: "unary";
+    input: typeof PresenceRequestSchema;
+    output: typeof EmptySchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_collab_document_v1_document, 0);
