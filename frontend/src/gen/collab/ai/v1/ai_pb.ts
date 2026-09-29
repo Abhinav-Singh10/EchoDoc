@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file collab/ai/v1/ai.proto.
  */
 export const file_collab_ai_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSJXCg1BbnN3ZXJSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSJAoGYWN0aW9uGAIgASgOMhQuY29sbGFiLmFpLnYxLkFjdGlvbhIMCgR0ZXh0GAMgASgJIk0KDkFuc3dlclJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSDgoGYW5zd2VyGAIgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgDIAEoBCpWCgZBY3Rpb24SFgoSQUNUSU9OX1VOU1BFQ0lGSUVEEAASCwoHR1JBTU1BUhABEgsKB1NVR0dFU1QQAhINCglTVU1NQVJJWkUQAxILCgdFTkhBTkNFEARiBnByb3RvMw");
+  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSKWAQoNQW5zd2VyUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEiQKBmFjdGlvbhgCIAEoDjIULmNvbGxhYi5haS52MS5BY3Rpb24SDAoEdGV4dBgDIAEoCRIPCgdjb250ZXh0GAQgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgFIAEoBBITCgtkb2N1bWVudF9pZBgGIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKAQqVgoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEgsKB0dSQU1NQVIQARILCgdTVUdHRVNUEAISDQoJU1VNTUFSSVpFEAMSCwoHRU5IQU5DRRAEYgZwcm90bzM");
 
 /**
  * @generated from message collab.ai.v1.AnswerRequest
@@ -30,6 +30,21 @@ export type AnswerRequest = Message<"collab.ai.v1.AnswerRequest"> & {
    * @generated from field: string text = 3;
    */
   text: string;
+
+  /**
+   * @generated from field: string context = 4;
+   */
+  context: string;
+
+  /**
+   * @generated from field: uint64 source_revision = 5;
+   */
+  sourceRevision: bigint;
+
+  /**
+   * @generated from field: string document_id = 6;
+   */
+  documentId: string;
 };
 
 /**
