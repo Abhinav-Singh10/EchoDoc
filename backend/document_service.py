@@ -2,6 +2,7 @@ import sqlite3
 import uuid
 import grpc
 import asyncio
+from google.protobuf.empty_pb2 import Empty
 
 from collections import defaultdict
 from pycrdt import Doc, Text
@@ -16,6 +17,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         self.locks = defaultdict(asyncio.Lock)
         self.subscribers = defaultdict(dict)
         self.presence = defaultdict(dict)
+        self.presence_sessions = defaultdict(dict)
 
 
         database = Path("data/documents.sqlite3")
@@ -80,6 +82,19 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         for queue in self.subscribers[document_id].values():
             queue.put_nowait(event)
     
+    async def UpdatePresence(self, request, context):
+        token, _ = await self.auth.require_session(context)
+        doc_id, conn_id = request.document_id, request.connection_id
+        async with self.locks[doc_id]:
+            if self.presence_sessions[doc_id].get(conn_id) != token:
+                await context.abort(grpc.StatusCode.PERMISSION_DENIED,
+                                    "Presence belongs to an active connection in this session")
+            peer = self.presence[doc_id][conn_id]
+            if peer.editing != request.editing:
+                peer.editing = request.editing
+                self.broadcast_presence(doc_id)
+        return Empty()
+
     async def ListDocuments(self, request, context):
         await self.auth.require_session(context)
 
@@ -238,7 +253,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             )
 
     async def WatchDocument(self, request, context):
-        _, session = await self.auth.require_session(context)
+        token, session = await self.auth.require_session(context)
 
         document_id = request.document_id
         connection_id = request.connection_id
@@ -282,6 +297,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 editing=False,
             )
 
+            self.presence_sessions[document_id][connection_id] = token
             self.broadcast_presence(document_id)
 
         try:
@@ -305,4 +321,5 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             async with self.locks[document_id]:
                 self.subscribers[document_id].pop(connection_id, None)
                 self.presence[document_id].pop(connection_id, None)
+                self.presence_sessions[document_id].pop(connection_id, None)
                 self.broadcast_presence(document_id)
