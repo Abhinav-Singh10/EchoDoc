@@ -226,3 +226,48 @@ All four services bind locally. If a port is occupied, the launcher exits withou
 stopping other processes. Choose unused ports in the selected JSON file; the
 launcher adjusts the gateway and frontend proxy to match. The AI worker is not
 exposed through the browser gateway. Docker is not required for this setup.
+
+## Demonstrate the project
+
+1. Alice creates a document and opens it. Bob clicks **Refresh documents** and
+   opens the same document.
+2. Type in either tab. Show matching content and revisions in both tabs, then
+   show presence changing from **editing** to **viewing** after a pause.
+3. Select a passage and click **Fix grammar** or **Enhance**. Review the result,
+   then **Apply to document**; the other tab receives the resulting shared edit.
+4. Place the cursor after some text to use **Continue**. **Summarize** displays
+   a summary of the selection or whole note and never inserts it automatically.
+5. Request an AI result, then edit in the other tab. Applying the old result is
+   disabled because its source changed. Automatic suggestions are optional and
+   also require review before insertion.
+6. Wait for Saved, restart the launcher, log in and reopen the document to show
+   persistence. During a connection interruption, restore the service and use
+   **Reconnect**, followed by **Retry save** if there are unconfirmed edits.
+
+See the [detailed demo walkthrough](docs/demo.md) for the presentation sequence.
+
+## Verification
+
+Run from the repository root on macOS or inside WSL:
+
+```bash
+npm --prefix frontend run build
+npm --prefix frontend run lint
+envoy --mode validate -c deploy/envoy.json
+```
+
+With the **demo configuration** running and the AI ready, open a second terminal
+in the same project directory and run:
+
+```bash
+PYTHONPATH=backend/generated .venv/bin/python scripts/check_demo.py
+```
+
+The check creates one `RPC smoke check` note and verifies authentication,
+persistent CRDT content, concurrent duplicate saves, all four AI actions,
+stale-revision rejection and logout. Expected output consists of `PASS:` lines.
+It uses demo ports/accounts, so it is not intended for `deploy/local.json`.
+
+The recorded [verification results](docs/verification.md) cover macOS and two
+browser tabs on one computer. They do not claim Windows or second-device testing.
+The frontend build currently reports a large-bundle warning but completes.
