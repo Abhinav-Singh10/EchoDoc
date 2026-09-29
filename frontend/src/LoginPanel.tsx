@@ -1,110 +1,110 @@
-import { Code, ConnectError } from '@connectrpc/connect'
-import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
-import { authClient } from './rpc'
-import { useEffect, useState } from 'react'
+import { Code, ConnectError } from "@connectrpc/connect";
+import type { LoginResponse } from "./gen/collab/auth/v1/auth_pb";
+import { authClient } from "./rpc";
+import { useEffect, useState } from "react";
 
 type LoginPanelProps = {
-  session: LoginResponse | null
-  setSession: (session: LoginResponse | null) => void
-}
+  session: LoginResponse | null;
+  setSession: (session: LoginResponse | null) => void;
+};
 
 function LoginPanel({ session, setSession }: LoginPanelProps) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const token = session?.sessionToken
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const token = session?.sessionToken;
+  const [watchAttempt, setWatchAttempt] = useState(0);
 
-useEffect(() => {
-  if (!token) return
+  useEffect(() => {
+    if (!token) return;
 
-  const controller = new AbortController()
+    const controller = new AbortController();
 
-  async function watchSession() {
-    try {
-      const stream = authClient.watchSession(
-        {},
-        {
-          headers: {
-            authorization: `Bearer ${token}`,
+    async function watchSession() {
+      try {
+        const stream = authClient.watchSession(
+          {},
+          {
+            headers: {
+              authorization: `Bearer ${token}`,
+            },
+            signal: controller.signal,
           },
-          signal: controller.signal,
-        },
-      )
+        );
 
-      for await (const user of stream) {
-        if (controller.signal.aborted) return
-        setNotice(`Session active for ${user.username}.`)
-      }
-      
-      if (!controller.signal.aborted) {
-        setError('Session stream ended. Restore the connection, then check session.')
-      }
+        for await (const user of stream) {
+          if (controller.signal.aborted) return;
+          setNotice(`Session active for ${user.username}.`);
+        }
 
-    } catch (err) {
-      if (controller.signal.aborted) return
-    
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.Unauthenticated
-      ) {
-        setSession(null)
-        setError('Your session expired or is no longer valid. Log in again.')
-      } else {
-        setError('Session connection lost. Restore the connection, then check session.')
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setNotice('')
+        if (!controller.signal.aborted) {
+          setError(
+            "Session stream ended. Restore the connection, then check session.",
+          );
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+
+        if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+          setSession(null);
+          setError("Your session expired or is no longer valid. Log in again.");
+        } else {
+          setError(
+            "Session connection lost. Restore the connection, then check session.",
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setNotice("");
+        }
       }
     }
-  }
 
-  function leavePage() {
-    controller.abort()
-    setSession(null)
-    setNotice('')
-  }
+    function leavePage() {
+      controller.abort();
+      setSession(null);
+      setNotice("");
+    }
 
-  watchSession()
-  window.addEventListener('pagehide', leavePage)
+    watchSession();
+    window.addEventListener("pagehide", leavePage);
 
-  return () => {
-    controller.abort()
-    window.removeEventListener('pagehide', leavePage)
-  }
-}, [token, setSession])
+    return () => {
+      controller.abort();
+      window.removeEventListener("pagehide", leavePage);
+    };
+  }, [token, setSession, watchAttempt]);
 
-
-async function login() {
-    setBusy(true)
-    setError('')
-    setNotice('')
+  async function login() {
+    setBusy(true);
+    setError("");
+    setNotice("");
     try {
       const response = await authClient.login(
         { username, password },
         { timeoutMs: 5000 },
-      )
-      setSession(response)
-      setPassword('')
+      );
+      setSession(response);
+      setPassword("");
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setError('Incorrect username or password.')
+        setError("Incorrect username or password.");
       } else {
-        setError('Login failed. Check Python and Envoy.')
+        setError("Login failed. Check Python and Envoy.");
       }
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
   async function logout() {
-    if (!session) return
+    if (!session) return;
 
-    setBusy(true)
-    setError('')
-    setNotice('')
+    setBusy(true);
+    setError("");
+    setNotice("");
     try {
       await authClient.logout(
         {},
@@ -114,27 +114,27 @@ async function login() {
           },
           timeoutMs: 5000,
         },
-      )
-      setSession(null)
+      );
+      setSession(null);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setSession(null)
-        setError('Your session is no longer valid. Log in again.')
+        setSession(null);
+        setError("Your session is no longer valid. Log in again.");
       } else {
-        setError('Logout failed. Check Python and Envoy, then retry.')
+        setError("Logout failed. Check Python and Envoy, then retry.");
       }
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
   async function checkSession() {
-    if (!session) return
-  
-    setBusy(true)
-    setError('')
-    setNotice('')
-  
+    if (!session) return;
+
+    setBusy(true);
+    setError("");
+    setNotice("");
+
     try {
       const user = await authClient.getCurrentUser(
         {},
@@ -144,18 +144,19 @@ async function login() {
           },
           timeoutMs: 5000,
         },
-      )
-  
-      setNotice(`Session accepted by Python for ${user.username}.`)
+      );
+
+      setNotice(`Session accepted for ${user.username}. Restarting monitor…`);
+      setWatchAttempt((attempt) => attempt + 1);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setSession(null)
-        setError('Your session expired or is no longer valid. Log in again.')
+        setSession(null);
+        setError("Your session expired or is no longer valid. Log in again.");
       } else {
-        setError('Could not check the session. Check Python and Envoy.')
+        setError("Could not check the session. Check Python and Envoy.");
       }
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
@@ -165,23 +166,23 @@ async function login() {
 
       {session ? (
         <div>
-        <p>Logged in as {session.user?.username}</p>
-      
-        <button onClick={checkSession} disabled={busy}>
-          Check session
-        </button>
-      
-        <button onClick={logout} disabled={busy}>
-          Log out
-        </button>
-      
-        {busy && <p role="status">Working…</p>}
-      </div>
+          <p>Logged in as {session.user?.username}</p>
+
+          <button onClick={checkSession} disabled={busy}>
+            Check session
+          </button>
+
+          <button onClick={logout} disabled={busy}>
+            Log out
+          </button>
+
+          {busy && <p role="status">Working…</p>}
+        </div>
       ) : (
         <form
-          onSubmit={event => {
-            event.preventDefault()
-            login()
+          onSubmit={(event) => {
+            event.preventDefault();
+            login();
           }}
         >
           <fieldset disabled={busy}>
@@ -191,7 +192,7 @@ async function login() {
               Username
               <input
                 value={username}
-                onChange={event => setUsername(event.target.value)}
+                onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
                 required
               />
@@ -202,15 +203,13 @@ async function login() {
               <input
                 type="password"
                 value={password}
-                onChange={event => setPassword(event.target.value)}
+                onChange={(event) => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
               />
             </label>
 
-            <button type="submit">
-              {busy ? 'Logging in…' : 'Log in'}
-            </button>
+            <button type="submit">{busy ? "Logging in…" : "Log in"}</button>
           </fieldset>
         </form>
       )}
@@ -218,7 +217,7 @@ async function login() {
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
     </section>
-  )
+  );
 }
 
-export default LoginPanel
+export default LoginPanel;
