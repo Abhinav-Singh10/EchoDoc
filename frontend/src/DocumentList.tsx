@@ -6,6 +6,7 @@ export default function DocumentList({ token }: { token: string }) {
   const [documents, setDocuments] = useState<DocumentInfo[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [title, setTitle] = useState('')
 
   async function refresh() {
     setBusy(true)
@@ -30,12 +31,64 @@ export default function DocumentList({ token }: { token: string }) {
     }
   }
 
+  async function createDocument() {
+    const trimmedTitle = title.trim()
+    if (!trimmedTitle) return
+
+    setBusy(true)
+    setError('')
+
+    try {
+      await documentClient.createDocument(
+        { title: trimmedTitle },
+        {
+          headers: {
+            authorization: `Bearer ${token}`,
+          },
+          timeoutMs: 5000,
+        },
+      )
+
+      setTitle('')
+      await refresh()
+    } catch {
+      setError(
+        'Creation was not confirmed. Refresh documents before trying again.',
+      )
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <section>
       <h2>Documents</h2>
+      <form
+        onSubmit={event => {
+          event.preventDefault()
+          createDocument()
+        }}
+      >
+        <fieldset disabled={busy}>
+          <legend>Create a document</legend>
+
+          <label>
+            Title
+            <input
+              value={title}
+              onChange={event => setTitle(event.target.value)}
+              required
+            />
+          </label>
+
+          <button type="submit" disabled={!title.trim()}>
+            Create document
+          </button>
+        </fieldset>
+      </form>
 
       <button onClick={refresh} disabled={busy}>
-        {busy ? 'Loading…' : 'Refresh documents'}
+           {busy ? 'Working…' : 'Refresh documents'}
       </button>
 
       {error && <p role="alert">{error}</p>}
