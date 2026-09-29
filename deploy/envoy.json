@@ -58,6 +58,15 @@
                           },
                           {
                             "match": {
+                              "prefix": "/collab.document.v1.DocumentService/"
+                            },
+                            "route": {
+                              "cluster": "python_backend",
+                              "timeout": "5s"
+                            }
+                          },
+                          {
+                            "match": {
                               "prefix": "/collab.auth.v1.AuthService/"
                             },
                             "route": {
