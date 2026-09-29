@@ -2,7 +2,7 @@
 :root { color-scheme: light; color: #253c45; background: #f3f5f4; font: 15px/1.55 system-ui, sans-serif; }
 * { box-sizing: border-box; }
 #root { width: 100%; max-width: 1500px; border: 0; text-align: left; padding: 28px 32px; }
-header { margin-bottom: 22px; }
+header { margin-bottom: 22px; text-align: center; }
 header h1 { font-size: 42px; color: #254f43; margin: 6px 0; }
 .eyebrow { font-size: 11px; letter-spacing: 2px; color: #527b6e; font-weight: 700; }
 h2,h3 { color: #253c45; }

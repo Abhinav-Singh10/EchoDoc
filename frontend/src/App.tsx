@@ -18,7 +18,7 @@ function App() {
   return (
     <main>
       <header><p className="eyebrow">ADVANCED OPERATING SYSTEMS · MILESTONE 1</p>
-        <h1>Shared Notes</h1><p>Write together. Keep your ideas in sync.</p></header>
+        <h1>Shared Notes</h1></header>
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
         lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
 
