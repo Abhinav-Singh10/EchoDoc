@@ -1,47 +1,36 @@
-# EchoDoc — Collaborative Notes with Local AI
+# EchoDoc
 
-An Advanced Operating Systems course project: a shared text editor that combines
-real-time collaboration, persistent documents and local AI writing assistance.
-The browser interface is titled **Shared Notes**.
+A collaborative notes editor for the Advanced Operating Systems course project.
+Open the same note in two tabs, log in as different users, and edits appear in
+both. Notes are saved in SQLite. There's also a local Qwen model for grammar
+fixes, continuations, summaries and rewriting a selected passage.
 
-## Features
+## How it works
 
-- Alice and Bob accounts with password authentication and session expiry.
-- Document creation, listing and live collaborative editing using Yjs CRDTs.
-- Editing/viewing presence for each open connection.
-- SQLite persistence and request deduplication for safe save retries.
-- Grammar correction, continuation, summarization and enhancement using local Qwen.
-- Preview before applying AI edits; stale results cannot overwrite newer changes.
-- Manual reconnect and retry, with navigation guarded while saves are unconfirmed.
-
-## Architecture
+The frontend uses React, TypeScript, CodeMirror and Yjs, with plain CSS for styling.
+Yjs handles merging text edits. The Python backend handles accounts, document
+storage and broadcasting updates to connected users.
 
 ```text
-React + CodeMirror + Yjs
-        │ gRPC-Web via Vite /rpc proxy
-        ▼
-      Envoy ── native gRPC ──► Python application ──► SQLite
-                                     │ authenticated writing requests
-                                     ▼
-                              Python AI worker ──► Qwen on CPU
+Browser → Vite /rpc → Envoy → Python backend → SQLite
+                                  ↓
+                            Local Qwen worker
 ```
 
-Protobuf contracts are shared between Python and TypeScript. The application
-stores an accepted CRDT update before broadcasting it to connected clients.
-The AI worker runs separately so model generation does not block document RPCs.
-Configuration files use JSON; the frontend uses plain CSS.
+Envoy converts browser gRPC-Web requests to native gRPC. Both sides generate
+message types from the protobuf files in `proto/`. The model runs in a separate
+process on the CPU. Its replies appear as previews; applying one sends a normal
+shared edit. If the document or selection has changed, the preview must be refreshed.
 
-## Requirements and platform support
+## Before starting
 
-Use Git, **Python 3.12**, **Node.js 24.x with npm**, C/C++ build tools and Envoy.
-Internet access is needed for dependencies and the first model download. Allow
-several GB of free disk space and enough memory for the model plus four services;
-8 GB RAM is a practical starting point, not a measured minimum.
+You'll need Git, Python 3.12, Node.js 24.x, Envoy and a C/C++ compiler. The first
+setup downloads dependencies and the model, so leave a few GB of disk space.
+No GPU or hosted AI API key is needed.
 
-macOS has been exercised end to end. Windows instructions use **WSL2 + Ubuntu
-24.04**, because the launcher uses Unix process groups and Linux-style paths.
-Native PowerShell execution is not supported. The WSL2 instructions follow the
-official installation guides but have not been executed on a Windows machine.
+The project has been tested on macOS. On Windows, use WSL2 with Ubuntu 24.04:
+the launcher depends on Unix process groups and won't run directly in PowerShell.
+The Windows steps below have not been tested on a Windows PC yet.
 
 ## macOS prerequisites
 
