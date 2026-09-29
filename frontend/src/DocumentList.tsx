@@ -67,7 +67,8 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
 
   
   return (
-    <section>
+    <section className="workspace">
+      <aside className="document-sidebar">
       <h2>Documents</h2>
       <form
         onSubmit={event => {
@@ -116,6 +117,9 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
         ))}
       </ul>
       {pendingCount > 0 && <p>Wait for Saved before switching documents or logging out.</p>}
+      </aside>
+      <div className="document-main">
+      {!selected && <p className="empty-state">Create or open a document to begin collaborating.</p>}
       {selected && (
         <>
           <button type="button" disabled={pendingCount > 0} onClick={() => setSelected(null)}>
@@ -131,6 +135,7 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
           />
         </>
       )}
+      </div>
     </section>
   )
 }

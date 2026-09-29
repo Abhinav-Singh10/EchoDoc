@@ -163,7 +163,7 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPan
   }
 
   return (
-    <section>
+    <section className="account-panel">
       <h2>Account</h2>
 
       {session ? (

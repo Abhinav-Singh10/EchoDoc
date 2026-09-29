@@ -359,7 +359,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
   }, [documentId, token, onPendingChange, local]);
 
   return (
-    <article aria-label="Shared document editor">
+    <article aria-label="Shared document editor" className="editor-panel">
       <h3>{title}</h3>
 
       {error && <p role="alert">{error}</p>}
@@ -408,10 +408,11 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
           </ul>
         </div>
       )}
-      <div ref={element} />
+      <div className="editor-columns"><div ref={element} />
       <WritingPanel editorRef={writingRef} documentId={documentId} token={token}
         ready={connected && !connecting && !error && pendingCount === 0}
         version={editVersion} revision={revision} lastTyped={lastTyped} />
+      </div>
     </article>
   );
 }

@@ -6,6 +6,7 @@ import { systemClient } from './rpc'
 import EventStream from './EventStream'
 import DocumentList from './DocumentList'
 import './App.css'
+import './demo.css'
 import LoginPanel from './LoginPanel'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 
@@ -39,13 +40,15 @@ function App() {
 
   return (
     <main>
-      <h1>System diagnostics</h1>
+      <header><p className="eyebrow">ADVANCED OPERATING SYSTEMS · MILESTONE 1</p>
+        <h1>Shared Notes</h1><p>Write together. Keep your ideas in sync.</p></header>
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
         lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
 
       {lastSession && (
         <DocumentList key={lastSession.user?.userId} token={session?.sessionToken ?? ""} pendingCount={pendingCount} onPendingChange={setPendingCount} />
       )}
+      <details className="diagnostics"><summary>System diagnostics</summary>
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
       </button>
@@ -72,6 +75,8 @@ function App() {
         </section>
       )}
       <EventStream/>
+      </details>
+      <footer>React + Yjs → gRPC-Web / Envoy → Python + SQLite · Local Qwen assistance</footer>
     </main>
   )
 }
