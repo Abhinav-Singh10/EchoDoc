@@ -1,4 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { EditorState } from '@codemirror/state'
+import { EditorView, lineNumbers } from '@codemirror/view'
+import { yCollab } from 'y-codemirror.next'
 import * as Y from 'yjs'
 import { documentClient } from './rpc'
 
@@ -13,16 +16,36 @@ export default function DocumentPreview({
   title,
   token,
 }: Props) {
-  const [preview, setPreview] = useState<{
-    text: string
-    revision: bigint
-  } | null>(null)
+  const element = useRef<HTMLDivElement>(null)
+  const [revision, setRevision] = useState<bigint | null>(null)
   const [error, setError] = useState('')
+  
 
   useEffect(() => {
     const controller = new AbortController()
     const doc = new Y.Doc()
     const text = doc.getText('content')
+
+    const editor = new EditorView({
+      parent: element.current!,
+      state: EditorState.create({
+        doc: text.toString(),
+        extensions: [
+          lineNumbers(),
+          EditorView.lineWrapping,
+          yCollab(text, null),
+          EditorState.readOnly.of(true),
+          EditorView.editable.of(false),
+          EditorView.contentAttributes.of({
+            'aria-label': 'Shared document',
+          }),
+          EditorView.theme({
+            '&': { border: '1px solid #888' },
+            '.cm-content': { minHeight: '200px' },
+          }),
+        ],
+      }),
+    })
 
     async function watch() {
       try {
@@ -44,10 +67,7 @@ export default function DocumentPreview({
 
           Y.applyUpdate(doc, event.update)
 
-          setPreview({
-            text: text.toString(),
-            revision: event.revision,
-          })
+          setRevision(event.revision)
         }
 
         if (!controller.signal.aborted) {
@@ -64,6 +84,7 @@ export default function DocumentPreview({
 
     return () => {
       controller.abort()
+      editor.destroy()
       doc.destroy()
     }
   }, [documentId, token])
@@ -73,20 +94,16 @@ export default function DocumentPreview({
       <h3>{title}</h3>
 
       {error && <p role="alert">{error}</p>}
-      {!preview && !error && <p>Connecting…</p>}
+      {revision === null && !error && <p>Connecting…</p>}
 
-      {preview && (
-        <>
-          <p>
-            {error ? 'Last received' : 'Live'} revision:{' '}
-            {preview.revision.toString()} — read-only
-          </p>
-
-          <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-            {preview.text || 'This document is empty.'}
-          </div>
-        </>
+      {revision !== null && (
+        <p>
+          {error ? 'Last received' : 'Live'} revision:{' '}
+          {revision.toString()} — read-only
+        </p>
       )}
+
+      <div ref={element} />
     </article>
   )
 }
