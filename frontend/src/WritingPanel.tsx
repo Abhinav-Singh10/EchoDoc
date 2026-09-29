@@ -1,0 +1,48 @@
+import { useEffect, useRef, useState } from 'react'
+import type { RefObject } from 'react'
+import { Action } from './gen/collab/ai/v1/ai_pb'
+import { writingClient } from './rpc'
+import type { WritingEditor, WritingTarget } from './writing'
+
+type Props = { editorRef: RefObject<WritingEditor | null>; documentId: string; token: string; ready: boolean }
+export default function WritingPanel({ editorRef, documentId, token, ready }: Props) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState<{ target: WritingTarget; answer: string } | null>(null)
+  const active = useRef<AbortController | null>(null)
+  useEffect(() => () => { active.current?.abort(); active.current = null; setBusy(false) }, [token])
+
+  async function request(action: Action) {
+    if (active.current || !editorRef.current || !ready) return
+    const controller = new AbortController()
+    active.current = controller
+    setBusy(true); setError(''); setResult(null)
+    try {
+      const target = editorRef.current.capture(action)
+      if (!target.text.trim()) throw new Error('Add text first; place the cursor after it for a continuation.')
+      const response = await writingClient.getLLMAnswer({ documentId, requestId: crypto.randomUUID(),
+        action, text: target.text, context: target.context, sourceRevision: target.revision },
+        { headers: { authorization: `Bearer ${token}` }, timeoutMs: 50000, signal: controller.signal })
+      if (active.current === controller) setResult({ target, answer: response.answer })
+    } catch (error) {
+      if (active.current === controller) setError(controller.signal.aborted ? 'Request cancelled.' : String(error))
+    } finally {
+      if (active.current === controller) { active.current = null; setBusy(false) }
+    }
+  }
+
+  return <aside className="writing-panel" aria-label="Writing assistant">
+    <h3>Writing assistant</h3>
+    <p>Select text for grammar or enhancement. Continue uses text before the cursor. Summaries use the selection or whole note.</p>
+    <div className="writing-actions">
+      {[[Action.GRAMMAR, 'Fix grammar'], [Action.SUGGEST, 'Continue'], [Action.SUMMARIZE, 'Summarize'], [Action.ENHANCE, 'Enhance']].map(([action, label]) =>
+        <button key={action} disabled={busy || !ready || !token} onClick={() => void request(action as Action)}>{label}</button>)}
+    </div>
+    {busy && <p role="status">Thinking locally… <button onClick={() => active.current?.abort()}>Cancel</button></p>}
+    {error && <p role="alert">{error}</p>}
+    {result && <div className="ai-result"><h4>Preview</h4><pre>{result.answer}</pre>
+      <button onClick={() => setResult(null)}>Dismiss</button>
+    </div>}
+    <small>Qwen runs locally. Review its output; summaries are displayed only.</small>
+  </aside>
+}
