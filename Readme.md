@@ -55,38 +55,34 @@ envoy --version
 Use Python 3.12 and Node.js 24.x. Repeat the PATH export in a new terminal if
 `node` is missing or resolves to an older version. Then continue to **Project setup**.
 
-## Local backend setup
+## Project setup
 
-Prerequisite: Python 3.12. On macOS with Homebrew:
+These commands are shared by macOS Terminal and Ubuntu inside WSL2.
+Clone the submission repository, or open the root of your extracted submission:
 
 ```bash
-brew install python@3.12
+git clone https://github.com/Abhinav-Singh10/EchoDoc.git
+cd EchoDoc
 ```
 
-Run the following commands from the repository root.
-
-Create and activate a virtual environment:
+Run every command below from this directory. Keep the two Python environments
+separate: `.venv` runs the application; `ai/.venv` includes the native AI runtime.
 
 ```bash
 python3.12 -m venv .venv
-source .venv/bin/activate
+.venv/bin/python -m pip install -r backend/requirements.txt
+.venv/bin/python scripts/generate.py
+npm --prefix frontend ci
+npm --prefix frontend run generate
+python3.12 -m venv ai/.venv
+CMAKE_ARGS='-DGGML_METAL=OFF' ai/.venv/bin/python -m pip install -r ai/requirements.txt
+.venv/bin/python -m pip check
+ai/.venv/bin/python -m pip check
 ```
 
-Install the recorded dependency versions:
+The AI dependency may compile from source; allow time for this step. See the
+[llama-cpp-python installation guide](https://github.com/abetlen/llama-cpp-python#installation)
+if compilation fails. Inference uses the CPU; a GPU and hosted AI API key are not required.
 
-```bash
-python -m pip install -r backend/requirements.txt
-python -m pip check
-```
-
-Generate Python message classes and gRPC support:
-
-```bash
-python scripts/generate.py
-```
-
-Verify that the generated modules can be imported:
-
-```bash
-PYTHONPATH=backend/generated python -c "from collab.system.v1 import system_pb2, system_pb2_grpc; print('Generated imports OK')"
-```
+Generated Python files live in `backend/generated/`; generated TypeScript lives
+in `frontend/src/gen/`. Regenerate both after editing files under `proto/`.
