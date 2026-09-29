@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { RefObject } from 'react'
 import { Action } from './gen/collab/ai/v1/ai_pb'
 import { writingClient } from './rpc'
 import type { WritingEditor, WritingTarget } from './writing'
 
-type Props = { editorRef: RefObject<WritingEditor | null>; documentId: string; token: string; ready: boolean; version: number; revision: bigint | null }
-export default function WritingPanel({ editorRef, documentId, token, ready, version, revision }: Props) {
+type Props = { editorRef: RefObject<WritingEditor | null>; documentId: string; token: string; ready: boolean; version: number; revision: bigint | null; lastTyped: number }
+export default function WritingPanel({ editorRef, documentId, token, ready, version, revision, lastTyped }: Props) {
+  const [auto, setAuto] = useState(false)
+  const lastSuggested = useRef(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ target: WritingTarget; answer: string } | null>(null)
@@ -31,6 +33,16 @@ export default function WritingPanel({ editorRef, documentId, token, ready, vers
     }
   }
 
+  const suggestAfterPause = useEffectEvent(() => { void request(Action.SUGGEST) })
+  useEffect(() => {
+    if (!auto || !ready || busy || !lastTyped || lastTyped === lastSuggested.current) return
+    const timer = setTimeout(() => {
+      lastSuggested.current = lastTyped
+      suggestAfterPause()
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [auto, ready, busy, lastTyped])
+
   const stale = !!result && (!ready || result.target.token !== token ||
     result.target.version !== version || result.target.revision !== revision)
   function apply() {
@@ -46,6 +58,7 @@ export default function WritingPanel({ editorRef, documentId, token, ready, vers
       {[[Action.GRAMMAR, 'Fix grammar'], [Action.SUGGEST, 'Continue'], [Action.SUMMARIZE, 'Summarize'], [Action.ENHANCE, 'Enhance']].map(([action, label]) =>
         <button key={action} disabled={busy || !ready || !token} onClick={() => void request(action as Action)}>{label}</button>)}
     </div>
+    <label><input type="checkbox" checked={auto} onChange={event => setAuto(event.target.checked)} /> Suggest after typing pauses</label>
     {busy && <p role="status">Thinking locally… <button onClick={() => active.current?.abort()}>Cancel</button></p>}
     {error && <p role="alert">{error}</p>}
     {result && <div className="ai-result"><h4>Preview</h4><pre>{result.answer}</pre>

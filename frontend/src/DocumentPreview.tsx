@@ -23,6 +23,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     version: 0,
     pending: [] as { requestId: string; update: Uint8Array }[],
   }));
+  const [lastTyped, setLastTyped] = useState(0);
   const [editVersion, setEditVersion] = useState(0);
   const writingRef = useRef<WritingEditor | null>(null);
   const element = useRef<HTMLDivElement>(null);
@@ -197,6 +198,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
       if (origin === remoteOrigin || controller.signal.aborted) return;
 
       lastEdit = Date.now();
+      setLastTyped(lastEdit);
       void sendPresence();
       pending.push({
         requestId: crypto.randomUUID(),
@@ -409,7 +411,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
       <div ref={element} />
       <WritingPanel editorRef={writingRef} documentId={documentId} token={token}
         ready={connected && !connecting && !error && pendingCount === 0}
-        version={editVersion} revision={revision} />
+        version={editVersion} revision={revision} lastTyped={lastTyped} />
     </article>
   );
 }
