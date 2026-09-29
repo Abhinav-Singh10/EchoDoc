@@ -250,18 +250,23 @@ The [test notes](docs/verification.md) record the macOS two-tab run. Windows and
 collaboration across separate computers haven't been tested. The frontend build
 has a bundle-size warning; it still completes.
 
-## Troubleshooting
+## If something goes wrong
 
-| Problem | Action |
-| --- | --- |
-| `python` or `node` not found | Use the explicit Python commands above; check the platform-specific PATH setup. In WSL, install Linux tools inside Ubuntu. |
-| `No module named collab` | Run `scripts/generate.py`. Use the launcher, which sets `PYTHONPATH`; direct RPC checks need the prefix shown above. |
-| AI dependency fails to compile | Finish Xcode command-line tools on macOS, or install `build-essential`, CMake and Python development headers in Ubuntu. Retry the AI install with `--verbose` to see the compiler error. |
-| AI is unavailable or first startup is slow | Check the AI terminal output and wait for the model download/loading to finish. Verify `MODEL_PATH` if set. |
-| Port already occupied | Stop your previous launcher or select free ports in the JSON configuration. |
-| Saved account file already exists | Skip account creation and use its existing credentials. Do not overwrite it just to restart. |
-| Editor is read-only or disconnected | Restore the services, check the session and log in again if required. Use Reconnect / Retry save while keeping the tab open. |
-| Windows browser cannot reach the app | Check that Vite is running in Ubuntu, use `localhost:5273`, and consult the linked WSL networking guide. Confirm WSL version 2 with `wsl --list --verbose`. |
+- **Command not found:** check the PATH commands in your OS setup section.
+  On Windows, run the project from Ubuntu, with Linux versions of the tools.
+- **`No module named collab`:** rerun `.venv/bin/python scripts/generate.py`.
+  The launcher sets `PYTHONPATH`; the smoke check needs the prefix shown above.
+- **Model installation fails:** check that Xcode tools or Ubuntu's build tools
+  are installed. Add `--verbose` to the pip command to see the compiler error.
+- **AI unavailable:** look at the worker's terminal output. The first download
+  can take a while. If you set `MODEL_PATH`, check that the file exists.
+- **Port busy:** stop your earlier launcher or choose another port in the config.
+- **Accounts already exist:** skip seeding and use their existing passwords.
+- **Editor stuck read-only:** restore the connection, check your session and log
+  in again if needed. Reconnect and retry without reloading pending edits.
+- **Page won't open on Windows:** check Vite is running in Ubuntu and try
+  `localhost:5273`. Check WSL2 with `wsl --list --verbose`; the WSL networking
+  link above covers localhost issues.
 
 ## Repository layout
 
@@ -276,17 +281,14 @@ docs/              Demo walkthrough, learning references and verification record
 data/              Local databases and demo accounts (generated, ignored by Git)
 ```
 
-## Scope and limitations
+## What's not covered
 
-This submission is a single-server learning project. It implements collaborative
-plain text, presence, persistent saves and local writing assistance. It does not
-implement Raft replication, user registration, rich-text formatting or durable
-offline drafts. Authentication is session-based, documents are shared by the demo
-users, and local RPCs run without TLS. Reconnect/retry are manual. AI suggestions
-can be inaccurate and should be reviewed before applying them.
+This version runs on one application server. There's no Raft replication,
+registration, rich-text formatting or persistent offline draft storage. The demo
+users share documents, and local RPCs don't use TLS. Reconnection is manual.
+AI output also needs review; a successful request doesn't guarantee a good answer.
 
-## Learning references
+## Further reading
 
-The [learning guide](docs/learning.md) connects implementation files to official
-Protobuf, gRPC, Yjs, React and Python documentation. The [setup companion](docs/setup.md)
-provides a shorter macOS demo checklist; this README is the cross-platform entry point.
+[docs/learning.md](docs/learning.md) links the code to the Protobuf, gRPC, Yjs,
+React and Python docs. [docs/setup.md](docs/setup.md) is a shorter macOS checklist.
