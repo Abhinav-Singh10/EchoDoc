@@ -20,6 +20,8 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
   const [connected, setConnected] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const retrySave = useRef<(() => Promise<void>) | null>(null);
+  const [connecting, setConnecting] = useState(true);
+  const reconnect = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -37,6 +39,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
     let sending = false;
     let stopped = false;
     let streamConnected = false;
+    let watching = false;
 
     function editingExtensions(enabled: boolean) {
       return [
@@ -130,6 +133,10 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
     doc.on("update", onLocalUpdate);
 
     async function watch() {
+      if (watching || controller.signal.aborted) return;
+
+      watching = true;
+
       try {
         const stream = documentClient.watchDocument(
           {
@@ -153,8 +160,16 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
           if (event.kind === "snapshot") {
             streamConnected = true;
             setConnected(true);
+            setConnecting(false);
 
-            if (!stopped) {
+            if (pending.length > 0) {
+              stopEditing(
+                "Connected again. Click Retry save to confirm pending edits.",
+              );
+            } else {
+              stopped = false;
+              setError("");
+
               editor.dispatch({
                 effects: editing.reconfigure(editingExtensions(true)),
               });
@@ -165,20 +180,24 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
         if (!controller.signal.aborted) {
           streamConnected = false;
           setConnected(false);
-          stopEditing(
-            "Stream ended. Copy any unconfirmed text before closing.",
-          );
+          stopEditing("Stream ended. Restore the connection, then reconnect.");
         }
       } catch {
         if (!controller.signal.aborted) {
           streamConnected = false;
           setConnected(false);
           stopEditing(
-            "Stream disconnected. Copy any unconfirmed text before closing.",
+            "Stream disconnected. Restore the connection, then reconnect.",
           );
         }
+      } finally {
+        watching = false;
+
+        if (!controller.signal.aborted) {
+          setConnecting(false);
+        }
       }
-    }
+    } 
 
     retrySave.current = async () => {
       if (sending || !streamConnected || controller.signal.aborted) {
@@ -204,10 +223,26 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       }
     };
 
+    reconnect.current = () => {
+      if (watching || controller.signal.aborted) return;
+
+      if (sending) {
+        setError(
+          "A save request is still finishing. Try Reconnect again in a moment.",
+        );
+        return;
+      }
+
+      setError("");
+      setConnecting(true);
+      void watch();
+    };
+
     void watch();
 
     return () => {
       retrySave.current = null;
+      reconnect.current = null;
       controller.abort();
       doc.off("update", onLocalUpdate);
       editor.destroy();
@@ -231,16 +266,26 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
           {retrying ? "Retrying…" : "Retry save"}
         </button>
       )}
-      {revision === null && !error && <p>Connecting…</p>}
+      {!connected && (
+        <button
+          type="button"
+          disabled={connecting}
+          onClick={() => reconnect.current?.()}
+        >
+          {connecting ? "Connecting…" : "Reconnect"}
+        </button>
+      )}
 
       {revision !== null && (
         <p>
           Received revision: {revision.toString()} —{" "}
-          {error
-            ? `Editing paused; ${pendingCount} unconfirmed update(s)`
-            : pendingCount > 0
-              ? `Saving ${pendingCount} update(s)…`
-              : "Saved"}
+          {connecting
+            ? "Reconnecting…"
+            : error
+              ? `Editing paused; ${pendingCount} unconfirmed update(s)`
+              : pendingCount > 0
+                ? `Saving ${pendingCount} update(s)…`
+                : "Saved"}
         </p>
       )}
 
