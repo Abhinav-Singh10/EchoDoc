@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file collab/ai/v1/ai.proto.
  */
 export const file_collab_ai_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSIxCg1BbnN3ZXJSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDAoEdGV4dBgDIAEoCWIGcHJvdG8z");
+  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSIxCg1BbnN3ZXJSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDAoEdGV4dBgDIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKARiBnByb3RvMw");
 
 /**
  * @generated from message collab.ai.v1.AnswerRequest
@@ -33,4 +33,31 @@ export type AnswerRequest = Message<"collab.ai.v1.AnswerRequest"> & {
  */
 export const AnswerRequestSchema: GenMessage<AnswerRequest> = /*@__PURE__*/
   messageDesc(file_collab_ai_v1_ai, 0);
+
+/**
+ * @generated from message collab.ai.v1.AnswerResponse
+ */
+export type AnswerResponse = Message<"collab.ai.v1.AnswerResponse"> & {
+  /**
+   * @generated from field: string request_id = 1;
+   */
+  requestId: string;
+
+  /**
+   * @generated from field: string answer = 2;
+   */
+  answer: string;
+
+  /**
+   * @generated from field: uint64 source_revision = 3;
+   */
+  sourceRevision: bigint;
+};
+
+/**
+ * Describes the message collab.ai.v1.AnswerResponse.
+ * Use `create(AnswerResponseSchema)` to create a new message.
+ */
+export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
+  messageDesc(file_collab_ai_v1_ai, 1);
 
