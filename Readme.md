@@ -160,3 +160,69 @@ if compilation fails. Inference uses the CPU; a GPU and hosted AI API key are no
 
 Generated Python files live in `backend/generated/`; generated TypeScript lives
 in `frontend/src/gen/`. Regenerate both after editing files under `proto/`.
+
+## Run locally
+
+### 1. Create demo accounts once
+
+From the repository root, run:
+
+```bash
+.venv/bin/python -m backend.seed_users --demo --output data/demo/users.json
+```
+
+This creates `alice` and `bob`, both with password **`demo1234`**, in an ignored
+local file. If the file already exists, reuse it and skip this step. To choose
+your own passwords, omit `--demo`; the automated demo check expects the public
+passwords. The seed script refuses to overwrite existing accounts unless you
+explicitly supply `--replace`.
+
+### 2. Start all four services
+
+```bash
+.venv/bin/python scripts/run_local.py --config deploy/demo.json
+```
+
+The launcher starts the application backend, AI worker, Envoy and Vite. Keep the
+terminal open. Wait for **AI ready on 127.0.0.1:52052** before using writing tools.
+
+On first startup, the worker downloads
+[Qwen2.5-1.5B-Instruct Q4_K_M GGUF](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
+from Hugging Face and caches it. To avoid a download, point to an existing model
+file before running the launcher (use a Linux path inside WSL):
+
+```bash
+export MODEL_PATH="/absolute/path/to/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+```
+
+### 3. Open and stop the application
+
+Open **http://localhost:5273** in two browser tabs. Log in as Alice in one tab
+and Bob in the other. On macOS, http://127.0.0.1:5273 also works.
+
+Wait for **Saved** before closing a note. Press **Ctrl+C** in the launcher terminal
+to stop its processes. To start again, rerun the same launcher command; you do
+not need to reinstall dependencies or recreate accounts.
+
+### Configuration and saved data
+
+| Setting | Demo configuration | Normal configuration |
+| --- | --- | --- |
+| JSON file | `deploy/demo.json` | `deploy/local.json` |
+| Browser / Vite | `5273` | `5173` |
+| Envoy gateway | `8181` | `8080` |
+| Application gRPC | `52051` | `50051` |
+| Internal AI gRPC | `52052` | `50052` |
+| SQLite database | `data/demo/documents.sqlite3` | `data/documents.sqlite3` |
+| Accounts | `data/demo/users.json` | `backend/users.json` |
+
+For normal configuration, create accounts with `.venv/bin/python -m backend.seed_users`
+and start with `--config deploy/local.json`. The demo setup keeps existing normal
+accounts and documents separate. The database is created automatically. Sessions
+are held in memory, so log in again after restarting the backend. Pending edits
+also live in memory; refreshing a tab can lose edits that were not confirmed.
+
+All four services bind locally. If a port is occupied, the launcher exits without
+stopping other processes. Choose unused ports in the selected JSON file; the
+launcher adjusts the gateway and frontend proxy to match. The AI worker is not
+exposed through the browser gateway. Docker is not required for this setup.
