@@ -45,6 +45,14 @@ async def main():
 
         try:
             async for event in call:
+
+                if event.kind == "presence":
+                    print("Open connections:",[user.username for user in event.users],flush=True,)
+                    continue
+
+                if event.kind not in ("snapshot", "update"):
+                    continue
+
                 doc.apply_update(event.update)
 
                 print(

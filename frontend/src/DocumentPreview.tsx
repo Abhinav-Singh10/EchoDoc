@@ -5,6 +5,7 @@ import { defaultKeymap } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
+import type { Presence } from "./gen/collab/document/v1/document_pb";
 
 type Props = {
   documentId: string;
@@ -22,6 +23,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
   const retrySave = useRef<(() => Promise<void>) | null>(null);
   const [connecting, setConnecting] = useState(true);
   const reconnect = useRef<(() => void) | null>(null);
+  const [users, setUsers] = useState<Presence[]>([]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -154,6 +156,15 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
         for await (const event of stream) {
           if (controller.signal.aborted) return;
 
+          if (event.kind === "presence") {
+            setUsers(event.users);
+            continue;
+          }
+
+          if (event.kind !== "snapshot" && event.kind !== "update") {
+            continue;
+          }
+
           Y.applyUpdate(doc, event.update, remoteOrigin);
           setRevision(event.revision);
 
@@ -197,7 +208,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
           setConnecting(false);
         }
       }
-    } 
+    }
 
     retrySave.current = async () => {
       if (sending || !streamConnected || controller.signal.aborted) {
@@ -288,7 +299,17 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
                 : "Saved"}
         </p>
       )}
+      {connected && (
+        <div>
+          <p>Open connections, including this tab: {users.length}</p>
 
+          <ul>
+            {users.map((user) => (
+              <li key={user.connectionId}>{user.username}</li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div ref={element} />
     </article>
   );

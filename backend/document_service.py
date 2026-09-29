@@ -15,6 +15,8 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         self.auth = auth
         self.locks = defaultdict(asyncio.Lock)
         self.subscribers = defaultdict(dict)
+        self.presence = defaultdict(dict)
+
 
         database = Path("data/documents.sqlite3")
         database.parent.mkdir(parents=True, exist_ok=True)
@@ -69,6 +71,14 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             title=title,
             revision=0,
         )
+    def broadcast_presence(self, document_id):
+        event = document_pb2.DocumentEvent(
+            kind="presence",
+            users=list(self.presence[document_id].values()),
+        )
+
+        for queue in self.subscribers[document_id].values():
+            queue.put_nowait(event)
     
     async def ListDocuments(self, request, context):
         await self.auth.require_session(context)
@@ -228,7 +238,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             )
 
     async def WatchDocument(self, request, context):
-        await self.auth.require_session(context)
+        _, session = await self.auth.require_session(context)
 
         document_id = request.document_id
         connection_id = request.connection_id
@@ -266,6 +276,13 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             )
 
             self.subscribers[document_id][connection_id] = queue
+            self.presence[document_id][connection_id] = document_pb2.Presence(
+                connection_id=connection_id,
+                username=session["user"].username,
+                editing=False,
+            )
+
+            self.broadcast_presence(document_id)
 
         try:
             await self.auth.require_session(context)
@@ -285,4 +302,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 await self.auth.require_session(context)
                 yield event
         finally:
-            self.subscribers[document_id].pop(connection_id, None)
+            async with self.locks[document_id]:
+                self.subscribers[document_id].pop(connection_id, None)
+                self.presence[document_id].pop(connection_id, None)
+                self.broadcast_presence(document_id)
