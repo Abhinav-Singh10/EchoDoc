@@ -213,16 +213,20 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     doc.on("update", onLocalUpdate);
 
     async function watch() {
+      if (watching || controller.signal.aborted) return;
+      await Promise.resolve();
+      if (controller.signal.aborted) return;
+      setConnected(false);
+      setUsers([]);
+      setRetrying(false);
+      setConnecting(!!token);
       if (!token) {
-        await Promise.resolve();
         if (!controller.signal.aborted) {
           stopEditing("Log in again as the same user to recover pending edits.");
           setConnecting(false);
         }
         return;
       }
-      if (watching || controller.signal.aborted) return;
-
       watching = true;
       connectionId = crypto.randomUUID();
       lastPresence = null;
