@@ -1,0 +1,10 @@
+{
+  "app_port": 52051,
+  "ai_port": 52052,
+  "gateway_port": 8181,
+  "frontend_port": 5273,
+  "frontend_host": "127.0.0.1",
+  "database": "data/demo/documents.sqlite3",
+  "users": "data/demo/users.json",
+  "ai_python": "ai/.venv/bin/python"
+}
