@@ -5,6 +5,8 @@ import { defaultKeymap } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
+import { Action } from "./gen/collab/ai/v1/ai_pb";
+import type { WritingEditor } from "./writing";
 import type { Presence } from "./gen/collab/document/v1/document_pb";
 
 type Props = {
@@ -19,6 +21,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     doc: new Y.Doc(),
     pending: [] as { requestId: string; update: Uint8Array }[],
   }));
+  const writingRef = useRef<WritingEditor | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
@@ -44,6 +47,8 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     let sending = false;
     let stopped = false;
     let streamConnected = false;
+    let latestRevision = 0n;
+    let version = 0;
     let watching = false;
     let connectionId = "";
     let lastEdit = 0;
@@ -82,6 +87,9 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
       state: EditorState.create({
         doc: text.toString(),
         extensions: [
+          EditorView.updateListener.of(update => {
+            if (update.docChanged || update.selectionSet) version++;
+          }),
           lineNumbers(),
           EditorView.lineWrapping,
           yCollab(text, null),
@@ -96,6 +104,20 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         ],
       }),
     });
+
+    writingRef.current = {
+      capture(action) {
+        if (!streamConnected || stopped || pending.length) throw new Error("Wait for Saved first.");
+        const { from, to } = editor.state.selection.main;
+        const full = editor.state.doc.toString();
+        if ((action === Action.GRAMMAR || action === Action.ENHANCE) && from === to) {
+          throw new Error("Select a passage first.");
+        }
+        return { action, from, to, version, revision: latestRevision, token,
+          text: action === Action.SUGGEST ? full.slice(0, from) : from === to ? full : full.slice(from, to),
+          context: action === Action.SUGGEST ? full.slice(to) : "" };
+      },
+    };
 
     function stopEditing(message: string) {
       stopped = true;
@@ -115,7 +137,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         while (pending.length > 0 && !stopped && !controller.signal.aborted) {
           const next = pending[0];
 
-          await documentClient.submitUpdate(
+          const response = await documentClient.submitUpdate(
             {
               documentId,
               requestId: next.requestId,
@@ -132,6 +154,8 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
           if (controller.signal.aborted) return;
 
+          latestRevision = response.revision > latestRevision ? response.revision : latestRevision;
+          setRevision(latestRevision);
           pending.shift();
           setPendingCount(pending.length);
           onPendingChange(pending.length);
@@ -206,7 +230,8 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
           }
 
           Y.applyUpdate(doc, event.update, remoteOrigin);
-          setRevision(event.revision);
+          latestRevision = event.revision > latestRevision ? event.revision : latestRevision;
+          setRevision(latestRevision);
 
           if (event.kind === "snapshot") {
             streamConnected = true;
@@ -298,6 +323,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
     return () => {
       window.removeEventListener("beforeunload", warnBeforeLeaving);
+      writingRef.current = null;
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
@@ -336,7 +362,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
       {revision !== null && (
         <p>
-          Received revision: {revision.toString()} —{" "}
+          Document revision: {revision.toString()} —{" "}
           {connecting
             ? "Reconnecting…"
             : error
