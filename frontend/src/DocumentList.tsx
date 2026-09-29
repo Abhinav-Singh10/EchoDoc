@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { DocumentInfo } from './gen/collab/document/v1/document_pb'
 import { documentClient } from './rpc'
 import * as Y from 'yjs'
+import DocumentPreview from './DocumentPreview'
 
 export default function DocumentList({ token }: { token: string }) {
   const [documents, setDocuments] = useState<DocumentInfo[] | null>(null)
@@ -12,6 +13,7 @@ export default function DocumentList({ token }: { token: string }) {
     title: string
     text: string
   } | null>(null)
+ const [selected, setSelected] = useState<DocumentInfo | null>(null)
 
   async function refresh() {
     setBusy(true)
@@ -137,7 +139,7 @@ export default function DocumentList({ token }: { token: string }) {
           <li key={document.documentId}>
           <button
             type="button"
-            onClick={() => openDocument(document)}
+            onClick={() => setSelected(document)}
             disabled={busy}
           >
             {document.title}
@@ -146,15 +148,19 @@ export default function DocumentList({ token }: { token: string }) {
         </li>
         ))}
       </ul>
-      {preview && (
-        <article aria-label="Document preview">
-          <h3>{preview.title}</h3>
-          <p>Saved snapshot — read-only</p>
+      {selected && (
+        <>
+          <button type="button" onClick={() => setSelected(null)}>
+            Close preview
+          </button>
 
-          <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-                {preview.text || 'This document is empty.'}
-          </div>
-        </article>
+          <DocumentPreview
+            key={selected.documentId}
+            documentId={selected.documentId}
+            title={selected.title}
+            token={token}
+          />
+        </>
       )}
     </section>
   )

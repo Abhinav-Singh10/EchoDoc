@@ -58,7 +58,7 @@
                           },
                           {
                             "match": {
-                              "prefix": "/collab.document.v1.DocumentService/"
+                              "prefix": "/collab.auth.v1.AuthService/"
                             },
                             "route": {
                               "cluster": "python_backend",
@@ -67,7 +67,17 @@
                           },
                           {
                             "match": {
-                              "prefix": "/collab.auth.v1.AuthService/"
+                              "path": "/collab.document.v1.DocumentService/WatchDocument"
+                            },
+                            "route": {
+                              "cluster": "python_backend",
+                              "timeout": "0s",
+                              "idle_timeout": "0s"
+                            }
+                          },
+                          {
+                            "match": {
+                              "prefix": "/collab.document.v1.DocumentService/"
                             },
                             "route": {
                               "cluster": "python_backend",
