@@ -15,6 +15,10 @@ type Props = {
 };
 
 export default function DocumentPreview({ documentId, title, token, onPendingChange }: Props) {
+  const [local] = useState(() => ({
+    doc: new Y.Doc(),
+    pending: [] as { requestId: string; update: Uint8Array }[],
+  }));
   const element = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
@@ -29,16 +33,13 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
   useEffect(() => {
     const controller = new AbortController();
-    const doc = new Y.Doc();
+    const doc = local.doc;
     const text = doc.getText("content");
 
     const remoteOrigin = Symbol("server");
     const editing = new Compartment();
 
-    const pending: {
-      requestId: string;
-      update: Uint8Array;
-    }[] = [];
+    const pending = local.pending;
 
     let sending = false;
     let stopped = false;
@@ -164,6 +165,14 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     doc.on("update", onLocalUpdate);
 
     async function watch() {
+      if (!token) {
+        await Promise.resolve();
+        if (!controller.signal.aborted) {
+          stopEditing("Log in again as the same user to recover pending edits.");
+          setConnecting(false);
+        }
+        return;
+      }
       if (watching || controller.signal.aborted) return;
 
       watching = true;
@@ -295,9 +304,9 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
       clearInterval(presenceTimer);
       doc.off("update", onLocalUpdate);
       editor.destroy();
-      doc.destroy();
+      // The component owns local.doc; changing a session only replaces the stream.
     };
-  }, [documentId, token, onPendingChange]);
+  }, [documentId, token, onPendingChange, local]);
 
   return (
     <article aria-label="Shared document editor">

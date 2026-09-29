@@ -75,7 +75,7 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
           createDocument()
         }}
       >
-        <fieldset disabled={busy}>
+        <fieldset disabled={busy || !token}>
           <legend>Create a document</legend>
 
           <label>
@@ -93,7 +93,7 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
         </fieldset>
       </form>
 
-      <button onClick={refresh} disabled={busy}>
+      <button onClick={refresh} disabled={busy || !token}>
            {busy ? 'Working…' : 'Refresh documents'}
       </button>
 
@@ -107,7 +107,7 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
           <button
             type="button"
             onClick={() => { if (!pendingCount) setSelected(document) }}
-            disabled={busy || pendingCount > 0}
+            disabled={busy || !token || pendingCount > 0}
           >
             {document.title}
           </button>

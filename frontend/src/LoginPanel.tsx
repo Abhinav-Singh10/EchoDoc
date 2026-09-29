@@ -5,11 +5,12 @@ import { useEffect, useState } from "react";
 
 type LoginPanelProps = {
   canLogout: boolean;
+  lockedUsername?: string;
   session: LoginResponse | null;
   setSession: (session: LoginResponse | null) => void;
 };
 
-function LoginPanel({ session, setSession, canLogout }: LoginPanelProps) {
+function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPanelProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -84,7 +85,7 @@ function LoginPanel({ session, setSession, canLogout }: LoginPanelProps) {
     setNotice("");
     try {
       const response = await authClient.login(
-        { username, password },
+        { username: lockedUsername || username, password },
         { timeoutMs: 5000 },
       );
       setSession(response);
@@ -192,7 +193,8 @@ function LoginPanel({ session, setSession, canLogout }: LoginPanelProps) {
             <label>
               Username
               <input
-                value={username}
+                value={lockedUsername || username}
+                readOnly={!!lockedUsername}
                 onChange={(event) => setUsername(event.target.value)}
                 autoComplete="username"
                 required
