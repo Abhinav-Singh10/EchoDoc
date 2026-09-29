@@ -32,11 +32,10 @@ The project has been tested on macOS. On Windows, use WSL2 with Ubuntu 24.04:
 the launcher depends on Unix process groups and won't run directly in PowerShell.
 The Windows steps below have not been tested on a Windows PC yet.
 
-## macOS prerequisites
+## Setup on macOS
 
-Install [Homebrew](https://brew.sh/) if it is not already available. Run the
-following in Terminal. Install Apple's command-line tools first if needed and
-finish their installer before continuing:
+These commands use [Homebrew](https://brew.sh/). If you don't have Apple's
+command-line tools, install them first and wait for the installer to finish:
 
 ```bash
 xcode-select --install
@@ -51,31 +50,31 @@ npm --version
 envoy --version
 ```
 
-Use Python 3.12 and Node.js 24.x. Repeat the PATH export in a new terminal if
-`node` is missing or resolves to an older version. Then continue to **Project setup**.
+If a new terminal picks up an older Node version, run the PATH export again.
+Then skip to [Installing the project](#installing-the-project).
 
-## Windows prerequisites (WSL2)
+## Setup on Windows
 
-Use Windows 11 or a Windows 10 version supported by WSL2. In **PowerShell as
-Administrator**, install Ubuntu 24.04 using [Microsoft's WSL guide](https://learn.microsoft.com/en-us/windows/wsl/install):
+On Windows 11 or a WSL2-compatible Windows 10 installation, open PowerShell as
+Administrator and install Ubuntu ([WSL instructions](https://learn.microsoft.com/en-us/windows/wsl/install)):
 
 ```powershell
 wsl --install -d Ubuntu-24.04
 ```
 
-Restart Windows if prompted, open **Ubuntu 24.04** and create its Linux username
-and password. In PowerShell, `wsl --list --verbose` should show version `2`.
-If necessary, run `wsl --set-version Ubuntu-24.04 2`.
+Restart if prompted, then open Ubuntu 24.04 and create a Linux user.
+Check `wsl --list --verbose` in PowerShell. If Ubuntu shows version 1, run
+`wsl --set-version Ubuntu-24.04 2`.
 
-**Run all remaining commands in the Ubuntu terminal**, including setup, generation
-and startup. Do not reuse a Windows/macOS virtual environment or `node_modules`.
+From here on, use the Ubuntu terminal. Install everything there, including Node
+and Python; don't copy virtual environments or `node_modules` from another OS.
 
 ```bash
 sudo apt update
 sudo apt install -y git curl ca-certificates build-essential cmake python3.12 python3.12-venv python3.12-dev
 ```
 
-Install Node.js inside Ubuntu using [nvm's official installer](https://github.com/nvm-sh/nvm#installing-and-updating):
+Install Node through [nvm](https://github.com/nvm-sh/nvm#installing-and-updating):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh -o /tmp/install-nvm.sh
@@ -86,7 +85,7 @@ nvm install 24
 nvm alias default 24
 ```
 
-Install a pinned Linux Envoy binary from its [official release](https://github.com/envoyproxy/envoy/releases/tag/v1.38.3):
+Download Envoy from its [release page](https://github.com/envoyproxy/envoy/releases/tag/v1.38.3):
 
 ```bash
 mkdir -p "$HOME/.local/bin"
@@ -101,35 +100,32 @@ npm --version
 envoy --version
 ```
 
-`uname -m` identifies Ubuntu's architecture (`x86_64` or `aarch64`). Repeat the
-PATH export in new Ubuntu terminals if `envoy` is not found. Envoy now directs
-Linux users to release binaries or containers; its old apt repository is
-[unmaintained](https://www.envoyproxy.io/docs/envoy/latest/start/install).
+Check `uname -m` if you're unsure which architecture to use. Run the PATH export
+again if a new terminal can't find Envoy. This uses the release binary because
+Envoy's old apt repository is [no longer maintained](https://www.envoyproxy.io/docs/envoy/latest/start/install).
 
-Keep the checkout under the Linux home directory, such as `~/projects/EchoDoc`,
-for WSL filesystem performance:
+Keep the project in Ubuntu's home directory, rather than under `/mnt/c`:
 
 ```bash
 mkdir -p ~/projects
 cd ~/projects
 ```
 
-Continue with **Project setup** below. Open the running app in your normal Windows
-browser at `http://localhost:5273`; WSL supports accessing Linux web applications
-through [Windows localhost forwarding](https://learn.microsoft.com/en-us/windows/wsl/networking).
+Once the app is running, open `http://localhost:5273` in your Windows browser.
+WSL handles this through [localhost forwarding](https://learn.microsoft.com/en-us/windows/wsl/networking).
 
-## Project setup
+## Installing the project
 
-These commands are shared by macOS Terminal and Ubuntu inside WSL2.
-Clone the submission repository, or open the root of your extracted submission:
+The remaining commands are the same on macOS and WSL. Clone the repo, or open
+the project folder if you already have a copy:
 
 ```bash
 git clone https://github.com/Abhinav-Singh10/EchoDoc.git
 cd EchoDoc
 ```
 
-Run every command below from this directory. Keep the two Python environments
-separate: `.venv` runs the application; `ai/.venv` includes the native AI runtime.
+Run these from the repo root. There are two Python environments: one for the
+backend and one for the model's native dependencies.
 
 ```bash
 python3.12 -m venv .venv
@@ -143,12 +139,12 @@ CMAKE_ARGS='-DGGML_METAL=OFF' ai/.venv/bin/python -m pip install -r ai/requireme
 ai/.venv/bin/python -m pip check
 ```
 
-The AI dependency may compile from source; allow time for this step. See the
-[llama-cpp-python installation guide](https://github.com/abetlen/llama-cpp-python#installation)
-if compilation fails. Inference uses the CPU; a GPU and hosted AI API key are not required.
+Installing `llama-cpp-python` can take a while because it may compile from source.
+Its [installation notes](https://github.com/abetlen/llama-cpp-python#installation)
+cover compiler errors.
 
-Generated Python files live in `backend/generated/`; generated TypeScript lives
-in `frontend/src/gen/`. Regenerate both after editing files under `proto/`.
+If you change a `.proto` file, rerun both generation commands. They write to
+`backend/generated/` and `frontend/src/gen/`.
 
 ## Run locally
 
