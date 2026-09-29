@@ -1,1 +1,50 @@
 /* Demo workspace styling is added incrementally below. */
+:root { color-scheme: light; color: #253c45; background: #f3f5f4; font: 15px/1.55 system-ui, sans-serif; }
+* { box-sizing: border-box; }
+#root { width: 100%; max-width: 1500px; border: 0; text-align: left; padding: 28px 32px; }
+header { margin-bottom: 22px; }
+header h1 { font-size: 42px; color: #254f43; margin: 6px 0; }
+.eyebrow { font-size: 11px; letter-spacing: 2px; color: #527b6e; font-weight: 700; }
+h2,h3 { color: #253c45; }
+h2 { font-size: 20px; }
+h3 { font-size: 18px; }
+p { margin: 9px 0; }
+button,input { font: inherit; }
+button { border: 1px solid #c5d2d3; border-radius: 6px; background: white; color: #235d4c; padding: 7px 12px; cursor: pointer; margin: 4px 6px 4px 0; }
+button:hover:not(:disabled) { background: #e5f0e9; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible,input:focus-visible { outline: 3px solid #80b8aa; outline-offset: 2px; }
+input:not([type=checkbox]) { display: block; width: 100%; padding: 8px; border: 1px solid #bccdd0; border-radius: 5px; background: white; color: #253c45; margin: 5px 0 10px; }
+label { font-size: 13px; font-weight: 600; }
+[role=alert] { padding: 10px; background: #fff1e9; color: #873c27; border-radius: 5px; overflow-wrap: anywhere; }
+.account-panel { border: 1px solid #dce3e1; background: white; border-radius: 9px; padding: 16px 20px; margin-bottom: 20px; }
+.account-panel h2 { font-size: 16px; }
+.account-panel fieldset { border: 0; padding: 0; display: flex; gap: 15px; flex-wrap: wrap; align-items: end; }
+.account-panel label { min-width: 180px; }
+.account-panel fieldset button { margin-bottom: 10px; background: #256e59; color: white; }
+.workspace { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; align-items: start; }
+.document-sidebar { padding: 20px; background: white; border: 1px solid #dce3e1; border-radius: 9px; }
+.document-sidebar fieldset { border: 0; padding: 0; margin: 12px 0; }
+.document-sidebar ul { list-style: none; padding: 0; }
+.document-sidebar li { font-size: 12px; color: #647b70; margin-top: 12px; }
+.document-sidebar li button { display: block; width: 100%; text-align: left; overflow-wrap: anywhere; }
+.editor-panel { padding: 20px; border: 1px solid #dce3e1; border-radius: 9px; background: white; }
+.editor-panel > ul { padding-left: 20px; }
+.editor-columns { display: grid; grid-template-columns: minmax(0,1fr) 260px; gap: 18px; margin-top: 18px; align-items: start; }
+.editor-columns > div { min-width: 0; }
+.cm-editor { border-radius: 6px; overflow: hidden; }
+.cm-content { min-height: 360px !important; font: 14px/1.7 ui-monospace, monospace; padding: 12px 0; }
+.cm-gutters { background: #f2f6f2 !important; color: #7c9084; }
+.writing-panel { padding: 16px; background: #f3f7f3; border-radius: 7px; font-size: 13px; }
+.writing-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 10px 0; }
+.writing-actions button { font-size: 12px; margin: 0; padding: 7px 3px; }
+.writing-panel label { display: block; margin: 14px 0; font-size: 12px; }
+.ai-result { border-top: 1px solid #cad8cd; padding-top: 12px; margin-top: 14px; }
+.ai-result pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.ai-result button { font-size: 12px; }
+.empty-state { min-height: 300px; padding: 70px 40px; border: 1px dashed #b9cdc0; border-radius: 9px; color: #5e7a69; }
+.diagnostics { margin: 25px 0; padding: 14px; border-top: 1px solid #d8e2d9; }
+.diagnostics summary { cursor: pointer; color: #647b70; }
+footer { font-size: 12px; color: #72867a; text-align: center; margin: 22px 0; }
+@media(max-width:1100px) { .editor-columns { grid-template-columns: 1fr; } }
+@media(max-width:700px) { #root { padding: 18px 12px; } .workspace { grid-template-columns: 1fr; } header h1 { font-size: 34px; } }
