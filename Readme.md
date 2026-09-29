@@ -271,3 +271,44 @@ It uses demo ports/accounts, so it is not intended for `deploy/local.json`.
 The recorded [verification results](docs/verification.md) cover macOS and two
 browser tabs on one computer. They do not claim Windows or second-device testing.
 The frontend build currently reports a large-bundle warning but completes.
+
+## Troubleshooting
+
+| Problem | Action |
+| --- | --- |
+| `python` or `node` not found | Use the explicit Python commands above; check the platform-specific PATH setup. In WSL, install Linux tools inside Ubuntu. |
+| `No module named collab` | Run `scripts/generate.py`. Use the launcher, which sets `PYTHONPATH`; direct RPC checks need the prefix shown above. |
+| AI dependency fails to compile | Finish Xcode command-line tools on macOS, or install `build-essential`, CMake and Python development headers in Ubuntu. Retry the AI install with `--verbose` to see the compiler error. |
+| AI is unavailable or first startup is slow | Check the AI terminal output and wait for the model download/loading to finish. Verify `MODEL_PATH` if set. |
+| Port already occupied | Stop your previous launcher or select free ports in the JSON configuration. |
+| Saved account file already exists | Skip account creation and use its existing credentials. Do not overwrite it just to restart. |
+| Editor is read-only or disconnected | Restore the services, check the session and log in again if required. Use Reconnect / Retry save while keeping the tab open. |
+| Windows browser cannot reach the app | Check that Vite is running in Ubuntu, use `localhost:5273`, and consult the linked WSL networking guide. Confirm WSL version 2 with `wsl --list --verbose`. |
+
+## Repository layout
+
+```text
+frontend/          React, TypeScript, CodeMirror, Yjs and CSS
+backend/           Authentication, documents, persistence and writing RPC forwarding
+ai/                CPU model loading and internal AI gRPC service
+proto/             Shared protobuf service and message definitions
+deploy/            JSON launcher and Envoy configuration
+scripts/           Contract generation, local launcher and demo check
+docs/              Demo walkthrough, learning references and verification record
+data/              Local databases and demo accounts (generated, ignored by Git)
+```
+
+## Scope and limitations
+
+This submission is a single-server learning project. It implements collaborative
+plain text, presence, persistent saves and local writing assistance. It does not
+implement Raft replication, user registration, rich-text formatting or durable
+offline drafts. Authentication is session-based, documents are shared by the demo
+users, and local RPCs run without TLS. Reconnect/retry are manual. AI suggestions
+can be inaccurate and should be reviewed before applying them.
+
+## Learning references
+
+The [learning guide](docs/learning.md) connects implementation files to official
+Protobuf, gRPC, Yjs, React and Python documentation. The [setup companion](docs/setup.md)
+provides a shorter macOS demo checklist; this README is the cross-platform entry point.
