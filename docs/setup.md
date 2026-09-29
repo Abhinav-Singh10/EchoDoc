@@ -54,6 +54,14 @@ npm --prefix frontend run lint
 envoy --mode validate -c deploy/envoy.json
 ```
 
+With the demo running and AI ready, exercise the real RPCs and all four AI actions:
+
+```bash
+PYTHONPATH=backend/generated .venv/bin/python scripts/check_demo.py
+```
+
+This uses the demo accounts and creates one `RPC smoke check` note per run.
+
 The frontend build currently warns about its large editor bundle; it still builds.
 This is a local course demo, with manual reconnect and in-memory sessions/drafts.
 A page reload loses unconfirmed edits. Saved documents persist in SQLite.

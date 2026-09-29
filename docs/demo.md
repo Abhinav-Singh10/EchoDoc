@@ -40,9 +40,11 @@ can be wrong, so the user reviews it before it becomes a shared edit.
 ## 3. Recovery
 
 1. Leave a saved note open. Stop the launcher with Ctrl+C, then run it again.
-2. The page becomes disconnected/read-only. Sessions live in backend memory,
-   so after restart use **Check session** if needed and log in again.
-3. The same open note should reconnect and display its saved SQLite content.
+2. The page becomes disconnected/read-only. Restarting Vite can reload the page;
+   log in, refresh the document list and reopen the note.
+3. Confirm the saved text remains. Sessions live in backend memory, so a backend
+   restart also requires re-login. If the page has stayed open, **Check session**
+   reveals the invalid session and same-user login reconnects its mounted editor.
 4. For a gateway-only interruption, restore the gateway and click **Reconnect**.
    If the UI shows unconfirmed edits, click **Retry save** after reconnecting.
    Repeated requests reuse their IDs, preventing a second revision for one save.
