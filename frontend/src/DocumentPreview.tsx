@@ -23,6 +23,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
   const retrySave = useRef<(() => Promise<void>) | null>(null);
   const [connecting, setConnecting] = useState(true);
   const reconnect = useRef<(() => void) | null>(null);
+  const [presenceError, setPresenceError] = useState("");
   const [users, setUsers] = useState<Presence[]>([]);
 
   useEffect(() => {
@@ -42,6 +43,29 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
     let stopped = false;
     let streamConnected = false;
     let watching = false;
+    let connectionId = "";
+    let lastEdit = 0;
+    let lastPresence: boolean | null = null;
+    let presenceSending = false;
+
+    async function sendPresence() {
+      const active = Date.now() - lastEdit < 3000;
+      if (!streamConnected || presenceSending || lastPresence === active) return;
+      presenceSending = true;
+      try {
+        await documentClient.updatePresence({ documentId, connectionId, editing: active }, {
+          headers: { authorization: `Bearer ${token}` }, timeoutMs: 5000,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) {
+          lastPresence = active;
+          setPresenceError("");
+        }
+      } catch {
+        if (!controller.signal.aborted) setPresenceError("Could not update editing status.");
+      } finally { presenceSending = false; }
+    }
+    const presenceTimer = setInterval(() => void sendPresence(), 1000);
 
     function editingExtensions(enabled: boolean) {
       return [
@@ -123,6 +147,8 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
     function onLocalUpdate(update: Uint8Array, origin: unknown) {
       if (origin === remoteOrigin || controller.signal.aborted) return;
 
+      lastEdit = Date.now();
+      void sendPresence();
       pending.push({
         requestId: crypto.randomUUID(),
         update,
@@ -138,12 +164,14 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       if (watching || controller.signal.aborted) return;
 
       watching = true;
+      connectionId = crypto.randomUUID();
+      lastPresence = null;
 
       try {
         const stream = documentClient.watchDocument(
           {
             documentId,
-            connectionId: crypto.randomUUID(),
+            connectionId,
           },
           {
             headers: {
@@ -170,6 +198,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
 
           if (event.kind === "snapshot") {
             streamConnected = true;
+            void sendPresence();
             setConnected(true);
             setConnecting(false);
 
@@ -255,6 +284,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
+      clearInterval(presenceTimer);
       doc.off("update", onLocalUpdate);
       editor.destroy();
       doc.destroy();
@@ -299,13 +329,14 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
                 : "Saved"}
         </p>
       )}
+      {presenceError && <p role="status">{presenceError}</p>}
       {connected && (
         <div>
           <p>Open connections, including this tab: {users.length}</p>
 
           <ul>
             {users.map((user) => (
-              <li key={user.connectionId}>{user.username}</li>
+              <li key={user.connectionId}>{user.username} — {user.editing ? "editing" : "viewing"}</li>
             ))}
           </ul>
         </div>
