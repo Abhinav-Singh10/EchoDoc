@@ -3,10 +3,14 @@ import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 import { authClient } from './rpc'
 import { useEffect, useState } from 'react'
 
-function LoginPanel() {
+type LoginPanelProps = {
+  session: LoginResponse | null
+  setSession: (session: LoginResponse | null) => void
+}
+
+function LoginPanel({ session, setSession }: LoginPanelProps) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [session, setSession] = useState<LoginResponse | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -66,7 +70,7 @@ useEffect(() => {
     controller.abort()
     window.removeEventListener('pagehide', leavePage)
   }
-}, [token])
+}, [token, setSession])
 
 
 async function login() {

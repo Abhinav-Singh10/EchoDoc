@@ -6,11 +6,13 @@ import { systemClient } from './rpc'
 import EventStream from './EventStream'
 import './App.css'
 import LoginPanel from './LoginPanel'
+import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 
 function App() {
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [session, setSession] = useState<LoginResponse | null>(null)
 
   async function loadServerInfo() {
     setLoading(true)
@@ -30,7 +32,11 @@ function App() {
   return (
     <main>
       <h1>System diagnostics</h1>
-      <LoginPanel />
+      <LoginPanel session={session} setSession={setSession} />
+
+      {session && (
+        <p>Workspace ready for {session.user?.username}.</p>
+      )}
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
       </button>
