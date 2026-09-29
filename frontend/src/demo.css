@@ -19,13 +19,18 @@ label { font-size: 13px; font-weight: 600; }
 [role=alert] { padding: 10px; background: #fff1e9; color: #873c27; border-radius: 5px; overflow-wrap: anywhere; }
 .account-panel { border: 1px solid #dce3e1; background: white; border-radius: 9px; padding: 16px 20px; margin-bottom: 20px; }
 .account-panel h2 { font-size: 16px; }
-.login-card { width: 100%; max-width: 360px; min-height: 360px; margin: 48px auto; padding: 28px; }
+.login-card { width: 100%; max-width: 400px; min-height: 400px; margin: 36px auto; padding: 28px; }
 .login-card h2 { font-size: 24px; margin: 0 0 24px; }
 .login-card fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }
 .login-card label { display: block; }
 .login-card input { margin: 6px 0 0; }
 .login-card button { width: 100%; margin: 4px 0 0; background: #256e59; color: white; }
 .login-card button:hover:not(:disabled) { background: #1d5746; }
+.demo-accounts { margin-top: 20px; padding-top: 12px; border-top: 1px solid #dce3e1; font-size: 12px; color: #527066; }
+.demo-accounts p { margin: 0 0 10px; }
+.demo-accounts table { width: 100%; text-align: left; border-collapse: collapse; }
+.demo-accounts th,.demo-accounts td { padding: 3px 0; }
+.demo-accounts code { background: none; color: #253c45; padding: 0; font-size: 13px; }
 .workspace { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; align-items: start; }
 .document-sidebar { padding: 20px; background: white; border: 1px solid #dce3e1; border-radius: 9px; }
 .document-sidebar fieldset { border: 0; padding: 0; margin: 12px 0; }

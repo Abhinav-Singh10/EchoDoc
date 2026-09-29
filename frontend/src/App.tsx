@@ -17,8 +17,11 @@ function App() {
 
   return (
     <main>
-      <header><p className="eyebrow">ADVANCED OPERATING SYSTEMS · MILESTONE 1</p>
-        <h1>Shared Notes</h1></header>
+      <header>
+        <h1>EchoDoc</h1>
+        <p className="eyebrow">ADVANCED OPERATING SYSTEMS · MILESTONE 1</p>
+        <p>Collaborative notes with real-time editing and local AI assistance.</p>
+      </header>
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
         lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
 

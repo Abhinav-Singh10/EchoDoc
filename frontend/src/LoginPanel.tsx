@@ -212,6 +212,16 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPan
 
             <button type="submit">{busy ? "Logging in…" : "Log in"}</button>
           </fieldset>
+          <div className="demo-accounts">
+            <p>Use either demo account to try the project during evaluation.</p>
+            <table aria-label="Demo account credentials">
+              <thead><tr><th>Username</th><th>Password</th></tr></thead>
+              <tbody>
+                <tr><td><code>alice</code></td><td><code>demo1234</code></td></tr>
+                <tr><td><code>bob</code></td><td><code>demo1234</code></td></tr>
+              </tbody>
+            </table>
+          </div>
         </form>
       )}
 
