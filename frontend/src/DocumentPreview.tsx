@@ -11,9 +11,10 @@ type Props = {
   documentId: string;
   title: string;
   token: string;
+  onPendingChange: (count: number) => void;
 };
 
-export default function DocumentPreview({ documentId, title, token }: Props) {
+export default function DocumentPreview({ documentId, title, token, onPendingChange }: Props) {
   const element = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
@@ -132,6 +133,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
 
           pending.shift();
           setPendingCount(pending.length);
+          onPendingChange(pending.length);
         }
       } catch {
         if (!controller.signal.aborted) {
@@ -155,6 +157,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       });
 
       setPendingCount(pending.length);
+      onPendingChange(pending.length);
       void flushUpdates();
     }
 
@@ -278,9 +281,14 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       void watch();
     };
 
+    function warnBeforeLeaving(event: BeforeUnloadEvent) {
+      if (pending.length) { event.preventDefault(); event.returnValue = ""; }
+    }
+    window.addEventListener("beforeunload", warnBeforeLeaving);
     void watch();
 
     return () => {
+      window.removeEventListener("beforeunload", warnBeforeLeaving);
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
@@ -289,7 +297,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       editor.destroy();
       doc.destroy();
     };
-  }, [documentId, token]);
+  }, [documentId, token, onPendingChange]);
 
   return (
     <article aria-label="Shared document editor">

@@ -4,7 +4,8 @@ import { documentClient } from './rpc'
 
 import DocumentPreview from './DocumentPreview'
 
-export default function DocumentList({ token }: { token: string }) {
+type Props = { token: string; pendingCount: number; onPendingChange: (count: number) => void }
+export default function DocumentList({ token, pendingCount, onPendingChange }: Props) {
   const [documents, setDocuments] = useState<DocumentInfo[] | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -105,8 +106,8 @@ export default function DocumentList({ token }: { token: string }) {
           <li key={document.documentId}>
           <button
             type="button"
-            onClick={() => setSelected(document)}
-            disabled={busy}
+            onClick={() => { if (!pendingCount) setSelected(document) }}
+            disabled={busy || pendingCount > 0}
           >
             {document.title}
           </button>
@@ -114,9 +115,10 @@ export default function DocumentList({ token }: { token: string }) {
         </li>
         ))}
       </ul>
+      {pendingCount > 0 && <p>Wait for Saved before switching documents or logging out.</p>}
       {selected && (
         <>
-          <button type="button" onClick={() => setSelected(null)}>
+          <button type="button" disabled={pendingCount > 0} onClick={() => setSelected(null)}>
             Close preview
           </button>
 
@@ -125,6 +127,7 @@ export default function DocumentList({ token }: { token: string }) {
             documentId={selected.documentId}
             title={selected.title}
             token={token}
+            onPendingChange={onPendingChange}
           />
         </>
       )}

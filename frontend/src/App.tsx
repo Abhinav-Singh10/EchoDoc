@@ -13,6 +13,7 @@ function App() {
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pendingCount, setPendingCount] = useState(0)
   const [session, setSession] = useState<LoginResponse | null>(null)
 
   async function loadServerInfo() {
@@ -33,10 +34,10 @@ function App() {
   return (
     <main>
       <h1>System diagnostics</h1>
-      <LoginPanel session={session} setSession={setSession} />
+      <LoginPanel session={session} setSession={setSession} canLogout={pendingCount === 0} />
 
       {session && (
-        <DocumentList token={session.sessionToken} />
+        <DocumentList token={session.sessionToken} pendingCount={pendingCount} onPendingChange={setPendingCount} />
       )}
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
