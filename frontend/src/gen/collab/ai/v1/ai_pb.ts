@@ -2,15 +2,15 @@
 // @generated from file collab/ai/v1/ai.proto (package collab.ai.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file collab/ai/v1/ai.proto.
  */
 export const file_collab_ai_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSIxCg1BbnN3ZXJSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSDAoEdGV4dBgDIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKARiBnByb3RvMw");
+  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSJXCg1BbnN3ZXJSZXF1ZXN0EhIKCnJlcXVlc3RfaWQYASABKAkSJAoGYWN0aW9uGAIgASgOMhQuY29sbGFiLmFpLnYxLkFjdGlvbhIMCgR0ZXh0GAMgASgJIk0KDkFuc3dlclJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSDgoGYW5zd2VyGAIgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgDIAEoBCpWCgZBY3Rpb24SFgoSQUNUSU9OX1VOU1BFQ0lGSUVEEAASCwoHR1JBTU1BUhABEgsKB1NVR0dFU1QQAhINCglTVU1NQVJJWkUQAxILCgdFTkhBTkNFEARiBnByb3RvMw");
 
 /**
  * @generated from message collab.ai.v1.AnswerRequest
@@ -20,6 +20,11 @@ export type AnswerRequest = Message<"collab.ai.v1.AnswerRequest"> & {
    * @generated from field: string request_id = 1;
    */
   requestId: string;
+
+  /**
+   * @generated from field: collab.ai.v1.Action action = 2;
+   */
+  action: Action;
 
   /**
    * @generated from field: string text = 3;
@@ -60,4 +65,40 @@ export type AnswerResponse = Message<"collab.ai.v1.AnswerResponse"> & {
  */
 export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
   messageDesc(file_collab_ai_v1_ai, 1);
+
+/**
+ * @generated from enum collab.ai.v1.Action
+ */
+export enum Action {
+  /**
+   * @generated from enum value: ACTION_UNSPECIFIED = 0;
+   */
+  ACTION_UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: GRAMMAR = 1;
+   */
+  GRAMMAR = 1,
+
+  /**
+   * @generated from enum value: SUGGEST = 2;
+   */
+  SUGGEST = 2,
+
+  /**
+   * @generated from enum value: SUMMARIZE = 3;
+   */
+  SUMMARIZE = 3,
+
+  /**
+   * @generated from enum value: ENHANCE = 4;
+   */
+  ENHANCE = 4,
+}
+
+/**
+ * Describes the enum collab.ai.v1.Action.
+ */
+export const ActionSchema: GenEnum<Action> = /*@__PURE__*/
+  enumDesc(file_collab_ai_v1_ai, 0);
 

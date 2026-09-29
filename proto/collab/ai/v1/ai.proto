@@ -3,6 +3,7 @@ package collab.ai.v1;
 
 message AnswerRequest {
   string request_id = 1;
+  Action action = 2;
   string text = 3;
 }
 
@@ -10,4 +11,12 @@ message AnswerResponse {
   string request_id = 1;
   string answer = 2;
   uint64 source_revision = 3;
+}
+
+enum Action {
+  ACTION_UNSPECIFIED = 0;
+  GRAMMAR = 1;
+  SUGGEST = 2;
+  SUMMARIZE = 3;
+  ENHANCE = 4;
 }
