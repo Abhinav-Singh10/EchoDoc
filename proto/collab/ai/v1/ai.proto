@@ -34,3 +34,8 @@ service AIService {
   rpc GetLLMAnswer(AnswerRequest) returns (AnswerResponse);
   rpc GetStatus(google.protobuf.Empty) returns (AIStatus);
 }
+
+// Only the authenticated application exposes this service through Envoy.
+service WritingService {
+  rpc GetLLMAnswer(AnswerRequest) returns (AnswerResponse);
+}

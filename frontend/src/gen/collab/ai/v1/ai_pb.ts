@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file collab/ai/v1/ai.proto.
  */
 export const file_collab_ai_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSKWAQoNQW5zd2VyUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEiQKBmFjdGlvbhgCIAEoDjIULmNvbGxhYi5haS52MS5BY3Rpb24SDAoEdGV4dBgDIAEoCRIPCgdjb250ZXh0GAQgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgFIAEoBBITCgtkb2N1bWVudF9pZBgGIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKAQiKAoIQUlTdGF0dXMSDQoFcmVhZHkYASABKAgSDQoFbW9kZWwYAiABKAkqVgoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEgsKB0dSQU1NQVIQARILCgdTVUdHRVNUEAISDQoJU1VNTUFSSVpFEAMSCwoHRU5IQU5DRRAEMpMBCglBSVNlcnZpY2USSQoMR2V0TExNQW5zd2VyEhsuY29sbGFiLmFpLnYxLkFuc3dlclJlcXVlc3QaHC5jb2xsYWIuYWkudjEuQW5zd2VyUmVzcG9uc2USOwoJR2V0U3RhdHVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuY29sbGFiLmFpLnYxLkFJU3RhdHVzYgZwcm90bzM", [file_google_protobuf_empty]);
+  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSKWAQoNQW5zd2VyUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEiQKBmFjdGlvbhgCIAEoDjIULmNvbGxhYi5haS52MS5BY3Rpb24SDAoEdGV4dBgDIAEoCRIPCgdjb250ZXh0GAQgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgFIAEoBBITCgtkb2N1bWVudF9pZBgGIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKAQiKAoIQUlTdGF0dXMSDQoFcmVhZHkYASABKAgSDQoFbW9kZWwYAiABKAkqVgoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEgsKB0dSQU1NQVIQARILCgdTVUdHRVNUEAISDQoJU1VNTUFSSVpFEAMSCwoHRU5IQU5DRRAEMpMBCglBSVNlcnZpY2USSQoMR2V0TExNQW5zd2VyEhsuY29sbGFiLmFpLnYxLkFuc3dlclJlcXVlc3QaHC5jb2xsYWIuYWkudjEuQW5zd2VyUmVzcG9uc2USOwoJR2V0U3RhdHVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuY29sbGFiLmFpLnYxLkFJU3RhdHVzMlsKDldyaXRpbmdTZXJ2aWNlEkkKDEdldExMTUFuc3dlchIbLmNvbGxhYi5haS52MS5BbnN3ZXJSZXF1ZXN0GhwuY29sbGFiLmFpLnYxLkFuc3dlclJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_empty]);
 
 /**
  * @generated from message collab.ai.v1.AnswerRequest
@@ -163,4 +163,21 @@ export const AIService: GenService<{
   },
 }> = /*@__PURE__*/
   serviceDesc(file_collab_ai_v1_ai, 0);
+
+/**
+ * Only the authenticated application exposes this service through Envoy.
+ *
+ * @generated from service collab.ai.v1.WritingService
+ */
+export const WritingService: GenService<{
+  /**
+   * @generated from rpc collab.ai.v1.WritingService.GetLLMAnswer
+   */
+  getLLMAnswer: {
+    methodKind: "unary";
+    input: typeof AnswerRequestSchema;
+    output: typeof AnswerResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_collab_ai_v1_ai, 1);
 
