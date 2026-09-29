@@ -2,15 +2,17 @@
 // @generated from file collab/ai/v1/ai.proto (package collab.ai.v1, syntax proto3)
 /* eslint-disable */
 
-import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { EmptySchema } from "@bufbuild/protobuf/wkt";
+import { file_google_protobuf_empty } from "@bufbuild/protobuf/wkt";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file collab/ai/v1/ai.proto.
  */
 export const file_collab_ai_v1_ai: GenFile = /*@__PURE__*/
-  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSKWAQoNQW5zd2VyUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEiQKBmFjdGlvbhgCIAEoDjIULmNvbGxhYi5haS52MS5BY3Rpb24SDAoEdGV4dBgDIAEoCRIPCgdjb250ZXh0GAQgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgFIAEoBBITCgtkb2N1bWVudF9pZBgGIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKAQqVgoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEgsKB0dSQU1NQVIQARILCgdTVUdHRVNUEAISDQoJU1VNTUFSSVpFEAMSCwoHRU5IQU5DRRAEYgZwcm90bzM");
+  fileDesc("ChVjb2xsYWIvYWkvdjEvYWkucHJvdG8SDGNvbGxhYi5haS52MSKWAQoNQW5zd2VyUmVxdWVzdBISCgpyZXF1ZXN0X2lkGAEgASgJEiQKBmFjdGlvbhgCIAEoDjIULmNvbGxhYi5haS52MS5BY3Rpb24SDAoEdGV4dBgDIAEoCRIPCgdjb250ZXh0GAQgASgJEhcKD3NvdXJjZV9yZXZpc2lvbhgFIAEoBBITCgtkb2N1bWVudF9pZBgGIAEoCSJNCg5BbnN3ZXJSZXNwb25zZRISCgpyZXF1ZXN0X2lkGAEgASgJEg4KBmFuc3dlchgCIAEoCRIXCg9zb3VyY2VfcmV2aXNpb24YAyABKAQiKAoIQUlTdGF0dXMSDQoFcmVhZHkYASABKAgSDQoFbW9kZWwYAiABKAkqVgoGQWN0aW9uEhYKEkFDVElPTl9VTlNQRUNJRklFRBAAEgsKB0dSQU1NQVIQARILCgdTVUdHRVNUEAISDQoJU1VNTUFSSVpFEAMSCwoHRU5IQU5DRRAEMpMBCglBSVNlcnZpY2USSQoMR2V0TExNQW5zd2VyEhsuY29sbGFiLmFpLnYxLkFuc3dlclJlcXVlc3QaHC5jb2xsYWIuYWkudjEuQW5zd2VyUmVzcG9uc2USOwoJR2V0U3RhdHVzEhYuZ29vZ2xlLnByb3RvYnVmLkVtcHR5GhYuY29sbGFiLmFpLnYxLkFJU3RhdHVzYgZwcm90bzM", [file_google_protobuf_empty]);
 
 /**
  * @generated from message collab.ai.v1.AnswerRequest
@@ -82,6 +84,28 @@ export const AnswerResponseSchema: GenMessage<AnswerResponse> = /*@__PURE__*/
   messageDesc(file_collab_ai_v1_ai, 1);
 
 /**
+ * @generated from message collab.ai.v1.AIStatus
+ */
+export type AIStatus = Message<"collab.ai.v1.AIStatus"> & {
+  /**
+   * @generated from field: bool ready = 1;
+   */
+  ready: boolean;
+
+  /**
+   * @generated from field: string model = 2;
+   */
+  model: string;
+};
+
+/**
+ * Describes the message collab.ai.v1.AIStatus.
+ * Use `create(AIStatusSchema)` to create a new message.
+ */
+export const AIStatusSchema: GenMessage<AIStatus> = /*@__PURE__*/
+  messageDesc(file_collab_ai_v1_ai, 2);
+
+/**
  * @generated from enum collab.ai.v1.Action
  */
 export enum Action {
@@ -116,4 +140,27 @@ export enum Action {
  */
 export const ActionSchema: GenEnum<Action> = /*@__PURE__*/
   enumDesc(file_collab_ai_v1_ai, 0);
+
+/**
+ * @generated from service collab.ai.v1.AIService
+ */
+export const AIService: GenService<{
+  /**
+   * @generated from rpc collab.ai.v1.AIService.GetLLMAnswer
+   */
+  getLLMAnswer: {
+    methodKind: "unary";
+    input: typeof AnswerRequestSchema;
+    output: typeof AnswerResponseSchema;
+  },
+  /**
+   * @generated from rpc collab.ai.v1.AIService.GetStatus
+   */
+  getStatus: {
+    methodKind: "unary";
+    input: typeof EmptySchema;
+    output: typeof AIStatusSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_collab_ai_v1_ai, 0);
 

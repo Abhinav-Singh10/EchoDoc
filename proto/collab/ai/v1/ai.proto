@@ -1,5 +1,6 @@
 syntax = "proto3";
 package collab.ai.v1;
+import "google/protobuf/empty.proto";
 
 message AnswerRequest {
   string request_id = 1;
@@ -22,4 +23,14 @@ enum Action {
   SUGGEST = 2;
   SUMMARIZE = 3;
   ENHANCE = 4;
+}
+
+message AIStatus {
+  bool ready = 1;
+  string model = 2;
+}
+
+service AIService {
+  rpc GetLLMAnswer(AnswerRequest) returns (AnswerResponse);
+  rpc GetStatus(google.protobuf.Empty) returns (AIStatus);
 }
