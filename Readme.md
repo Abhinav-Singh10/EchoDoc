@@ -65,6 +65,70 @@ envoy --version
 Use Python 3.12 and Node.js 24.x. Repeat the PATH export in a new terminal if
 `node` is missing or resolves to an older version. Then continue to **Project setup**.
 
+## Windows prerequisites (WSL2)
+
+Use Windows 11 or a Windows 10 version supported by WSL2. In **PowerShell as
+Administrator**, install Ubuntu 24.04 using [Microsoft's WSL guide](https://learn.microsoft.com/en-us/windows/wsl/install):
+
+```powershell
+wsl --install -d Ubuntu-24.04
+```
+
+Restart Windows if prompted, open **Ubuntu 24.04** and create its Linux username
+and password. In PowerShell, `wsl --list --verbose` should show version `2`.
+If necessary, run `wsl --set-version Ubuntu-24.04 2`.
+
+**Run all remaining commands in the Ubuntu terminal**, including setup, generation
+and startup. Do not reuse a Windows/macOS virtual environment or `node_modules`.
+
+```bash
+sudo apt update
+sudo apt install -y git curl ca-certificates build-essential cmake python3.12 python3.12-venv python3.12-dev
+```
+
+Install Node.js inside Ubuntu using [nvm's official installer](https://github.com/nvm-sh/nvm#installing-and-updating):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.8/install.sh -o /tmp/install-nvm.sh
+bash /tmp/install-nvm.sh
+export NVM_DIR="$HOME/.nvm"
+. "$NVM_DIR/nvm.sh"
+nvm install 24
+nvm alias default 24
+```
+
+Install a pinned Linux Envoy binary from its [official release](https://github.com/envoyproxy/envoy/releases/tag/v1.38.3):
+
+```bash
+mkdir -p "$HOME/.local/bin"
+ENVOY_ARCH=x86_64
+# On an ARM Windows PC, use ENVOY_ARCH=aarch_64 instead.
+curl -fL "https://github.com/envoyproxy/envoy/releases/download/v1.38.3/envoy-1.38.3-linux-${ENVOY_ARCH}" -o "$HOME/.local/bin/envoy"
+chmod +x "$HOME/.local/bin/envoy"
+export PATH="$HOME/.local/bin:$PATH"
+python3.12 --version
+node --version
+npm --version
+envoy --version
+```
+
+`uname -m` identifies Ubuntu's architecture (`x86_64` or `aarch64`). Repeat the
+PATH export in new Ubuntu terminals if `envoy` is not found. Envoy now directs
+Linux users to release binaries or containers; its old apt repository is
+[unmaintained](https://www.envoyproxy.io/docs/envoy/latest/start/install).
+
+Keep the checkout under the Linux home directory, such as `~/projects/EchoDoc`,
+for WSL filesystem performance:
+
+```bash
+mkdir -p ~/projects
+cd ~/projects
+```
+
+Continue with **Project setup** below. Open the running app in your normal Windows
+browser at `http://localhost:5273`; WSL supports accessing Linux web applications
+through [Windows localhost forwarding](https://learn.microsoft.com/en-us/windows/wsl/networking).
+
 ## Project setup
 
 These commands are shared by macOS Terminal and Ubuntu inside WSL2.
