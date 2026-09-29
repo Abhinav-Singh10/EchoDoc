@@ -13,4 +13,5 @@ export type WritingTarget = {
 }
 export type WritingEditor = {
   capture: (action: Action) => WritingTarget
+  apply: (target: WritingTarget, answer: string) => void
 }

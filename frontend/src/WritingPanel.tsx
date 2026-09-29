@@ -4,8 +4,8 @@ import { Action } from './gen/collab/ai/v1/ai_pb'
 import { writingClient } from './rpc'
 import type { WritingEditor, WritingTarget } from './writing'
 
-type Props = { editorRef: RefObject<WritingEditor | null>; documentId: string; token: string; ready: boolean }
-export default function WritingPanel({ editorRef, documentId, token, ready }: Props) {
+type Props = { editorRef: RefObject<WritingEditor | null>; documentId: string; token: string; ready: boolean; version: number; revision: bigint | null }
+export default function WritingPanel({ editorRef, documentId, token, ready, version, revision }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState<{ target: WritingTarget; answer: string } | null>(null)
@@ -31,6 +31,14 @@ export default function WritingPanel({ editorRef, documentId, token, ready }: Pr
     }
   }
 
+  const stale = !!result && (!ready || result.target.token !== token ||
+    result.target.version !== version || result.target.revision !== revision)
+  function apply() {
+    if (!result || stale || !editorRef.current) return
+    try { editorRef.current.apply(result.target, result.answer); setResult(null) }
+    catch (error) { setError(String(error)) }
+  }
+
   return <aside className="writing-panel" aria-label="Writing assistant">
     <h3>Writing assistant</h3>
     <p>Select text for grammar or enhancement. Continue uses text before the cursor. Summaries use the selection or whole note.</p>
@@ -41,6 +49,8 @@ export default function WritingPanel({ editorRef, documentId, token, ready }: Pr
     {busy && <p role="status">Thinking locally… <button onClick={() => active.current?.abort()}>Cancel</button></p>}
     {error && <p role="alert">{error}</p>}
     {result && <div className="ai-result"><h4>Preview</h4><pre>{result.answer}</pre>
+      {stale && <p>Document or selection changed. Request a fresh result.</p>}
+      {result.target.action !== Action.SUMMARIZE && <button disabled={stale} onClick={apply}>Apply to document</button>}
       <button onClick={() => setResult(null)}>Dismiss</button>
     </div>}
     <small>Qwen runs locally. Review its output; summaries are displayed only.</small>
