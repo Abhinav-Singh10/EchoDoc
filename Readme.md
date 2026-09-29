@@ -2,17 +2,36 @@
 
 An Advanced Operating Systems course project.
 
-## Iteration 1
+## Current milestone
 
-Build and verify browser-to-Python communication using unary
-and server-streaming RPCs.
+Shared notes with authenticated accounts, live Yjs editing, editing/viewing
+presence, SQLite persistence, manual reconnect/save retry, and local Qwen writing
+assistance. AI results are previewed and applied only while their source is current.
 
-## Planned architecture
+- [Complete setup and launcher](docs/setup.md)
+- [Five-minute demo walkthrough](docs/demo.md)
+- [Learning guide and official references](docs/learning.md)
+
+Once dependencies and demo accounts are ready:
+
+```bash
+.venv/bin/python scripts/run_local.py --config deploy/demo.json
+```
+
+Open http://127.0.0.1:5273. Demo accounts: `alice` / `bob`, password `demo1234`.
+The demo uses its own ports and data under `data/demo/`.
+
+## Architecture
 
 - Frontend: React and TypeScript.
 - Gateway: Envoy translates gRPC-Web into native gRPC.
 - Backend: Python implements the gRPC service.
+- Storage: SQLite stores Yjs-compatible CRDT state and deduplicated request IDs.
+- AI: a separate CPU Qwen worker, reached through the authenticated backend.
 - Deployment: currently runs locally on macOS; Docker Compose is deferred.
+
+The sections below retain the early RPC exercises. Use the complete setup guide
+above for the full application, including the AI worker and isolated demo ports.
 
 ## Frontend and gateway configuration
 
@@ -53,8 +72,8 @@ In a third terminal, from `frontend/`, start the page:
 npm run dev
 ```
 
-Open `http://127.0.0.1:5173`. The browser RPC client uses
-`VITE_RPC_BASE_URL` from `frontend/.env.development` to reach Envoy on port `8080`.
+Open `http://127.0.0.1:5173`. The browser RPC client defaults to same-origin `/rpc`;
+Vite proxies it to Envoy on port `8080`. `VITE_RPC_BASE_URL` can override that URL.
 Envoy forwards native gRPC over HTTP/2 to Python on `127.0.0.1:50051`.
 The gateway permits the development origin `http://127.0.0.1:5173`.
 
@@ -85,12 +104,7 @@ python -m pip check
 Generate Python message classes and gRPC support:
 
 ```bash
-mkdir -p backend/generated
-python -m grpc_tools.protoc \
-  -Iproto \
-  --python_out=backend/generated \
-  --grpc_python_out=backend/generated \
-  proto/collab/system/v1/system.proto
+python scripts/generate.py
 ```
 
 Verify that the generated modules can be imported:
@@ -142,4 +156,3 @@ add 2 client terminals and run
 ```
 PYTHONPATH=backend/generated python -m backend.watch_client
 ```
-
