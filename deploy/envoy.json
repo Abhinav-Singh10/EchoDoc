@@ -39,6 +39,10 @@
                         },
                         "routes": [
                           {
+                            "match": { "prefix": "/collab.ai.v1.WritingService/" },
+                            "route": { "cluster": "python_backend", "timeout": "50s" }
+                          },
+                          {
                             "match": {
                               "prefix": "/collab.system.v1.SystemService/"
                             },
