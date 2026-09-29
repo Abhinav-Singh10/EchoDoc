@@ -1,12 +1,12 @@
 import asyncio
 import grpc
+import uuid
 
 from pycrdt import Doc, Text
 from getpass import getpass
 from collab.document.v1 import document_pb2, document_pb2_grpc
 from collab.auth.v1 import auth_pb2, auth_pb2_grpc
 from google.protobuf.empty_pb2 import Empty
-from collab.document.v1 import document_pb2_grpc
 
 async def main():
     username = input("Username: ")
@@ -72,6 +72,32 @@ async def main():
             print("Opened:", loaded.document.title)
             print("Text:", repr(str(text)))
             print("Revision:", loaded.document.revision)
+
+            addition = input("Text to append (Enter to only read): ")
+
+            if addition:
+                before = local_doc.get_state()
+                text += addition
+                update = local_doc.get_update(before)
+
+                try:
+                    saved = await documents.SubmitUpdate(
+                        document_pb2.SubmitUpdateRequest(
+                            document_id=selected.document_id,
+                            request_id=str(uuid.uuid4()),
+                            update=update,
+                        ),
+                        metadata=metadata,
+                        timeout=5,
+                    )
+                except grpc.aio.AioRpcError as error:
+                    print(
+                        "Save not confirmed:",
+                        error.code().name,
+                        error.details(),
+                    )
+                else:
+                    print("Saved revision:", saved.revision)
 
         user = await stub.GetCurrentUser(
             Empty(),

@@ -106,3 +106,51 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             ),
             state=row["state"],
         )
+
+
+    async def SubmitUpdate(self, request, context):
+        await self.auth.require_session(context)
+
+        row = self.db.execute(
+            "SELECT state, revision FROM documents WHERE id = ?",
+            (request.document_id,),
+        ).fetchone()
+
+        if row is None:
+            await context.abort(
+                grpc.StatusCode.NOT_FOUND,
+                "Document not found",
+            )
+
+        doc = Doc()
+        doc.apply_update(row["state"])
+
+        try:
+            doc.apply_update(request.update)
+        except Exception:
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT,
+                "Invalid CRDT update",
+            )
+
+        revision = row["revision"] + 1
+
+        try:
+            with self.db:
+                self.db.execute(
+                    """
+                    UPDATE documents
+                    SET state = ?, revision = ?
+                    WHERE id = ?
+                    """,
+                    (doc.get_update(), revision, request.document_id),
+                )
+        except sqlite3.Error:
+            await context.abort(
+                grpc.StatusCode.INTERNAL,
+                "Could not save the document",
+            )
+
+        return document_pb2.SubmitUpdateResponse(
+            revision=revision,
+        )
