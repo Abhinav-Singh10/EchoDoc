@@ -1,6 +1,7 @@
 #asyncio provides Python's event loop , which schedules async work. we'll later use it to handle multiple streams while they wait b/w events 
 import asyncio
 import logging
+import os
 import grpc
 
 from backend.service import SystemService
@@ -40,8 +41,9 @@ async def serve():
     # insecure means this connection uses no TLS encryption
 
     # A 2nd lappy can't reach a server bound only to 1287.0.0.1. That fits our current local setup
-    address = "127.0.0.1:50051"
-    server.add_insecure_port(address)
+    address = os.getenv("APP_BIND", "127.0.0.1:50051")
+    if not server.add_insecure_port(address):
+        raise RuntimeError(f"Could not bind {address}")
 
 # Start accepting RPC's. await lets this corountine wait for the operation while allowing the event loop to run other ready work.
     await server.start()
@@ -54,6 +56,7 @@ async def serve():
     finally:
         await server.stop(grace=3) # finally block performs shutdown, allowing existing RPCs up to three seconds to finish before aborting them
 
+        document_service.db.close()
 
 # run this block when the module is executed directly, rather than when another module imports it
 if __name__ == "__main__":

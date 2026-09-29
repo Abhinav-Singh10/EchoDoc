@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import secrets
 import time
 from pathlib import Path
@@ -13,12 +14,12 @@ from google.protobuf.empty_pb2 import Empty
 from collab.auth.v1 import auth_pb2, auth_pb2_grpc
 
 # Auth token validity limit
-SESSION_SECONDS = 30 * 60
+SESSION_SECONDS = int(os.getenv("SESSION_SECONDS", "1800"))
 
 
 class AuthService(auth_pb2_grpc.AuthServiceServicer):
-    def __init__(self):
-        users_file = Path(__file__).with_name("users.json")
+    def __init__(self, users_file=None):
+        users_file = Path(users_file or os.getenv("USERS_PATH", str(Path(__file__).with_name("users.json"))))
         self.users = json.loads(users_file.read_text(encoding="utf-8"))
         self.hasher = PasswordHasher()
         self.sessions = {} # session are stored in a python dict for now-> later we'll store it in a db

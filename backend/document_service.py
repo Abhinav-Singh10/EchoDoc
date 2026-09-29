@@ -2,6 +2,7 @@ import sqlite3
 import uuid
 import grpc
 import asyncio
+import os
 from google.protobuf.empty_pb2 import Empty
 
 from collections import defaultdict
@@ -12,7 +13,7 @@ from collab.document.v1 import document_pb2_grpc
 
 
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
-    def __init__(self, auth):
+    def __init__(self, auth, database=None):
         self.auth = auth
         self.locks = defaultdict(asyncio.Lock)
         self.subscribers = defaultdict(dict)
@@ -20,7 +21,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         self.presence_sessions = defaultdict(dict)
 
 
-        database = Path("data/documents.sqlite3")
+        database = Path(database or os.getenv("DATABASE_PATH", "data/documents.sqlite3"))
         database.parent.mkdir(parents=True, exist_ok=True)
 
         self.db = sqlite3.connect(database)
