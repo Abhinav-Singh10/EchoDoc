@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { DocumentInfo } from './gen/collab/document/v1/document_pb'
 import { documentClient } from './rpc'
-import * as Y from 'yjs'
+
 import DocumentPreview from './DocumentPreview'
 
 export default function DocumentList({ token }: { token: string }) {
@@ -9,10 +9,7 @@ export default function DocumentList({ token }: { token: string }) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [title, setTitle] = useState('')
-  const [preview, setPreview] = useState<{
-    title: string
-    text: string
-  } | null>(null)
+
  const [selected, setSelected] = useState<DocumentInfo | null>(null)
 
   async function refresh() {
@@ -67,38 +64,7 @@ export default function DocumentList({ token }: { token: string }) {
     }
   }
 
-  async function openDocument(document: DocumentInfo) {
-    setBusy(true)
-    setError('')
-    setPreview(null)
-
-    const doc = new Y.Doc()
-
-    try {
-      const response = await documentClient.getDocument(
-        { documentId: document.documentId },
-        {
-          headers: {
-            authorization: `Bearer ${token}`,
-          },
-          timeoutMs: 5000,
-        },
-      )
-
-      Y.applyUpdate(doc, response.state)
-
-      setPreview({
-        title: document.title,
-        text: doc.getText('content').toString(),
-      })
-    } catch {
-      setError('Could not open the document. Check your connection and session.')
-    } finally {
-      doc.destroy()
-      setBusy(false)
-    }
-  }
-
+  
   return (
     <section>
       <h2>Documents</h2>
