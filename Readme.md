@@ -202,35 +202,32 @@ The two configs use separate accounts and databases. For `deploy/local.json`,
 create accounts with `.venv/bin/python -m backend.seed_users`, then launch with
 `--config deploy/local.json`. SQLite creates the database on first use.
 
-Saved notes survive a restart. Sessions and pending edits don't: log in again
-after a backend restart, and keep the tab open until its edits are saved.
+Saved notes survive a restart, but you'll need to log in again. Pending edits
+only exist in the open tab, so don't reload it until they are saved.
 
 If a port is busy, change it in the JSON config. The launcher updates the proxy
 settings to match and won't stop another process to free a port. Everything runs
 locally, including the model; Docker isn't needed.
 
-## Demonstrate the project
+## Quick demo
 
-1. Alice creates a document and opens it. Bob clicks **Refresh documents** and
-   opens the same document.
-2. Type in either tab. Show matching content and revisions in both tabs, then
-   show presence changing from **editing** to **viewing** after a pause.
-3. Select a passage and click **Fix grammar** or **Enhance**. Review the result,
-   then **Apply to document**; the other tab receives the resulting shared edit.
-4. Place the cursor after some text to use **Continue**. **Summarize** displays
-   a summary of the selection or whole note and never inserts it automatically.
-5. Request an AI result, then edit in the other tab. Applying the old result is
-   disabled because its source changed. Automatic suggestions are optional and
-   also require review before insertion.
-6. Wait for Saved, restart the launcher, log in and reopen the document to show
-   persistence. During a connection interruption, restore the service and use
-   **Reconnect**, followed by **Retry save** if there are unconfirmed edits.
+1. Create a note as Alice. In Bob's tab, refresh the document list and open it.
+2. Type in either tab. Both should show the same text and saved revision.
+   The participant list shows who is editing and who is viewing.
+3. Select some text and try **Fix grammar** or **Enhance**, then apply the preview.
+   Bob should receive the change too. **Continue** works at the cursor;
+   **Summarize** only displays a result.
+4. Request a result in Alice's tab, then edit in Bob's. Alice's old preview should
+   no longer be applicable. This prevents an AI reply from overwriting a newer edit.
+5. Wait for Saved, restart the app, and reopen the note to check persistence.
+   For a dropped connection, restore the service and use **Reconnect**, then
+   **Retry save** if needed. Keep the tab open during recovery.
 
-See the [detailed demo walkthrough](docs/demo.md) for the presentation sequence.
+There's a longer walkthrough in [docs/demo.md](docs/demo.md).
 
-## Verification
+## Checks
 
-Run from the repository root on macOS or inside WSL:
+Build, lint and check the gateway config:
 
 ```bash
 npm --prefix frontend run build
@@ -238,21 +235,20 @@ npm --prefix frontend run lint
 envoy --mode validate -c deploy/envoy.json
 ```
 
-With the **demo configuration** running and the AI ready, open a second terminal
-in the same project directory and run:
+With the demo running and the model ready, run this in another terminal from
+the repo root:
 
 ```bash
 PYTHONPATH=backend/generated .venv/bin/python scripts/check_demo.py
 ```
 
-The check creates one `RPC smoke check` note and verifies authentication,
-persistent CRDT content, concurrent duplicate saves, all four AI actions,
-stale-revision rejection and logout. Expected output consists of `PASS:` lines.
-It uses demo ports/accounts, so it is not intended for `deploy/local.json`.
+The script creates a `RPC smoke check` note. It checks login/logout, saving,
+duplicate requests and all four AI actions, including rejection of stale requests.
+It prints `PASS:` for each check and expects the demo config and passwords.
 
-The recorded [verification results](docs/verification.md) cover macOS and two
-browser tabs on one computer. They do not claim Windows or second-device testing.
-The frontend build currently reports a large-bundle warning but completes.
+The [test notes](docs/verification.md) record the macOS two-tab run. Windows and
+collaboration across separate computers haven't been tested. The frontend build
+has a bundle-size warning; it still completes.
 
 ## Troubleshooting
 
