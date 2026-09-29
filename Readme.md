@@ -1,37 +1,47 @@
-# Collaborative System Project
+# EchoDoc — Collaborative Notes with Local AI
 
-An Advanced Operating Systems course project.
+An Advanced Operating Systems course project: a shared text editor that combines
+real-time collaboration, persistent documents and local AI writing assistance.
+The browser interface is titled **Shared Notes**.
 
-## Current milestone
+## Features
 
-Shared notes with authenticated accounts, live Yjs editing, editing/viewing
-presence, SQLite persistence, manual reconnect/save retry, and local Qwen writing
-assistance. AI results are previewed and applied only while their source is current.
-
-- [Complete setup and launcher](docs/setup.md)
-- [Five-minute demo walkthrough](docs/demo.md)
-- [Learning guide and official references](docs/learning.md)
-
-Once dependencies and demo accounts are ready:
-
-```bash
-.venv/bin/python scripts/run_local.py --config deploy/demo.json
-```
-
-Open http://127.0.0.1:5273. Demo accounts: `alice` / `bob`, password `demo1234`.
-The demo uses its own ports and data under `data/demo/`.
+- Alice and Bob accounts with password authentication and session expiry.
+- Document creation, listing and live collaborative editing using Yjs CRDTs.
+- Editing/viewing presence for each open connection.
+- SQLite persistence and request deduplication for safe save retries.
+- Grammar correction, continuation, summarization and enhancement using local Qwen.
+- Preview before applying AI edits; stale results cannot overwrite newer changes.
+- Manual reconnect and retry, with navigation guarded while saves are unconfirmed.
 
 ## Architecture
 
-- Frontend: React and TypeScript.
-- Gateway: Envoy translates gRPC-Web into native gRPC.
-- Backend: Python implements the gRPC service.
-- Storage: SQLite stores Yjs-compatible CRDT state and deduplicated request IDs.
-- AI: a separate CPU Qwen worker, reached through the authenticated backend.
-- Deployment: currently runs locally on macOS; Docker Compose is deferred.
+```text
+React + CodeMirror + Yjs
+        │ gRPC-Web via Vite /rpc proxy
+        ▼
+      Envoy ── native gRPC ──► Python application ──► SQLite
+                                     │ authenticated writing requests
+                                     ▼
+                              Python AI worker ──► Qwen on CPU
+```
 
-The sections below retain the early RPC exercises. Use the complete setup guide
-above for the full application, including the AI worker and isolated demo ports.
+Protobuf contracts are shared between Python and TypeScript. The application
+stores an accepted CRDT update before broadcasting it to connected clients.
+The AI worker runs separately so model generation does not block document RPCs.
+Configuration files use JSON; the frontend uses plain CSS.
+
+## Requirements and platform support
+
+Use Git, **Python 3.12**, **Node.js 24.x with npm**, C/C++ build tools and Envoy.
+Internet access is needed for dependencies and the first model download. Allow
+several GB of free disk space and enough memory for the model plus four services;
+8 GB RAM is a practical starting point, not a measured minimum.
+
+macOS has been exercised end to end. Windows instructions use **WSL2 + Ubuntu
+24.04**, because the launcher uses Unix process groups and Linux-style paths.
+Native PowerShell execution is not supported. The WSL2 instructions follow the
+official installation guides but have not been executed on a Windows machine.
 
 ## macOS prerequisites
 
