@@ -146,50 +146,47 @@ cover compiler errors.
 If you change a `.proto` file, rerun both generation commands. They write to
 `backend/generated/` and `frontend/src/gen/`.
 
-## Run locally
+## Running it
 
-### 1. Create demo accounts once
+### Accounts
 
-From the repository root, run:
+Create the demo accounts once:
 
 ```bash
 .venv/bin/python -m backend.seed_users --demo --output data/demo/users.json
 ```
 
-This creates `alice` and `bob`, both with password **`demo1234`**, in an ignored
-local file. If the file already exists, reuse it and skip this step. To choose
-your own passwords, omit `--demo`; the automated demo check expects the public
-passwords. The seed script refuses to overwrite existing accounts unless you
-explicitly supply `--replace`.
+Log in with `alice` or `bob`; the password for both is `demo1234`.
+Skip this command if the account file already exists. Leave out `--demo` to set
+your own passwords, though the smoke check below expects `demo1234`.
+Existing accounts are only overwritten if you add `--replace`.
 
-### 2. Start all four services
+### Start the app
 
 ```bash
 .venv/bin/python scripts/run_local.py --config deploy/demo.json
 ```
 
-The launcher starts the application backend, AI worker, Envoy and Vite. Keep the
-terminal open. Wait for **AI ready on 127.0.0.1:52052** before using writing tools.
+This starts the backend, AI worker, Envoy and Vite in one terminal. Leave it open.
+Wait for `AI ready on 127.0.0.1:52052` before trying the writing assistant.
 
-On first startup, the worker downloads
-[Qwen2.5-1.5B-Instruct Q4_K_M GGUF](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
-from Hugging Face and caches it. To avoid a download, point to an existing model
-file before running the launcher (use a Linux path inside WSL):
+The first run downloads [Qwen2.5-1.5B-Instruct Q4_K_M](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF)
+from Hugging Face. Later runs reuse the cached file. If you already have the GGUF,
+set its path before starting the app (a Linux path when using WSL):
 
 ```bash
 export MODEL_PATH="/absolute/path/to/qwen2.5-1.5b-instruct-q4_k_m.gguf"
 ```
 
-### 3. Open and stop the application
+### Try it in the browser
 
-Open **http://localhost:5273** in two browser tabs. Log in as Alice in one tab
-and Bob in the other. On macOS, http://127.0.0.1:5273 also works.
+Open http://localhost:5273 in two tabs, with Alice in one and Bob in the other.
+On macOS, http://127.0.0.1:5273 works too.
 
-Wait for **Saved** before closing a note. Press **Ctrl+C** in the launcher terminal
-to stop its processes. To start again, rerun the same launcher command; you do
-not need to reinstall dependencies or recreate accounts.
+Wait for **Saved** before closing a note. Use Ctrl+C in the terminal to stop the
+app. Next time, just run the launcher again.
 
-### Configuration and saved data
+### Ports and data
 
 | Setting | Demo configuration | Normal configuration |
 | --- | --- | --- |
@@ -201,16 +198,16 @@ not need to reinstall dependencies or recreate accounts.
 | SQLite database | `data/demo/documents.sqlite3` | `data/documents.sqlite3` |
 | Accounts | `data/demo/users.json` | `backend/users.json` |
 
-For normal configuration, create accounts with `.venv/bin/python -m backend.seed_users`
-and start with `--config deploy/local.json`. The demo setup keeps existing normal
-accounts and documents separate. The database is created automatically. Sessions
-are held in memory, so log in again after restarting the backend. Pending edits
-also live in memory; refreshing a tab can lose edits that were not confirmed.
+The two configs use separate accounts and databases. For `deploy/local.json`,
+create accounts with `.venv/bin/python -m backend.seed_users`, then launch with
+`--config deploy/local.json`. SQLite creates the database on first use.
 
-All four services bind locally. If a port is occupied, the launcher exits without
-stopping other processes. Choose unused ports in the selected JSON file; the
-launcher adjusts the gateway and frontend proxy to match. The AI worker is not
-exposed through the browser gateway. Docker is not required for this setup.
+Saved notes survive a restart. Sessions and pending edits don't: log in again
+after a backend restart, and keep the tab open until its edits are saved.
+
+If a port is busy, change it in the JSON config. The launcher updates the proxy
+settings to match and won't stop another process to free a port. Everything runs
+locally, including the model; Docker isn't needed.
 
 ## Demonstrate the project
 
