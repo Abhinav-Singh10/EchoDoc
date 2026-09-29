@@ -33,49 +33,27 @@ The demo uses its own ports and data under `data/demo/`.
 The sections below retain the early RPC exercises. Use the complete setup guide
 above for the full application, including the AI worker and isolated demo ports.
 
-## Frontend and gateway configuration
+## macOS prerequisites
 
-We are using JSON configuration files in this project.
-
-From `frontend/`, install the recorded dependencies and generate the browser definitions:
-
-```bash
-npm ci
-npm run generate
-npm run build
-```
-
-The `generate` script explicitly loads `frontend/buf.gen.json` and reads the shared
-definitions from `proto/`. Generated TypeScript goes into `frontend/src/gen/`.
-
-Install the native macOS gateway:
+Install [Homebrew](https://brew.sh/) if it is not already available. Run the
+following in Terminal. Install Apple's command-line tools first if needed and
+finish their installer before continuing:
 
 ```bash
-brew install envoy
+xcode-select --install
 ```
-
-From the repository root, validate its JSON configuration:
 
 ```bash
-envoy --mode validate -c deploy/envoy.json
+brew install git python@3.12 node@24 cmake envoy
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+python3.12 --version
+node --version
+npm --version
+envoy --version
 ```
 
-Start the Python backend using the command below, then start Envoy in a second terminal:
-
-```bash
-envoy -c deploy/envoy.json --log-level info
-```
-
-In a third terminal, from `frontend/`, start the page:
-
-```bash
-npm run dev
-```
-
-Open `http://127.0.0.1:5173`. The browser RPC client defaults to same-origin `/rpc`;
-Vite proxies it to Envoy on port `8080`. `VITE_RPC_BASE_URL` can override that URL.
-Envoy forwards native gRPC over HTTP/2 to Python on `127.0.0.1:50051`.
-The gateway permits the development origin `http://127.0.0.1:5173`.
+Use Python 3.12 and Node.js 24.x. Repeat the PATH export in a new terminal if
+`node` is missing or resolves to an older version. Then continue to **Project setup**.
 
 ## Local backend setup
 
