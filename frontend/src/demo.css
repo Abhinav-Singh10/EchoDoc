@@ -43,8 +43,5 @@ label { font-size: 13px; font-weight: 600; }
 .ai-result pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .ai-result button { font-size: 12px; }
 .empty-state { min-height: 300px; padding: 70px 40px; border: 1px dashed #b9cdc0; border-radius: 9px; color: #5e7a69; }
-.diagnostics { margin: 25px 0; padding: 14px; border-top: 1px solid #d8e2d9; }
-.diagnostics summary { cursor: pointer; color: #647b70; }
-footer { font-size: 12px; color: #72867a; text-align: center; margin: 22px 0; }
 @media(max-width:1100px) { .editor-columns { grid-template-columns: 1fr; } }
 @media(max-width:700px) { #root { padding: 18px 12px; } .workspace { grid-template-columns: 1fr; } header h1 { font-size: 34px; } }
