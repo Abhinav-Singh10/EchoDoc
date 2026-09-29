@@ -1,3 +1,4 @@
+import argparse
 import json
 # accepts a password without displaying it
 from getpass import getpass
@@ -7,11 +8,19 @@ from argon2 import PasswordHasher
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--demo', action='store_true', help='Use public password demo1234')
+    parser.add_argument('--output', default='backend/users.json')
+    parser.add_argument('--replace', action='store_true')
+    args = parser.parse_args()
+    users_file = Path(args.output)
+    if users_file.exists() and not args.replace:
+        raise SystemExit(f'{users_file} already exists; choose a new --output or explicitly --replace.')
     hasher = PasswordHasher()
     users = {}
 
     for username in ("alice", "bob"):
-        password = getpass(f"Choose a demo password for {username}: ")
+        password = "demo1234" if args.demo else getpass(f"Choose a demo password for {username}: ")
 
         if not password:
             raise ValueError("Demo passwords cannot be empty")
@@ -22,7 +31,7 @@ def main():
             "password_hash": hasher.hash(password),
         }
 
-    users_file = Path(__file__).with_name("users.json")
+    users_file.parent.mkdir(parents=True, exist_ok=True)
     users_file.write_text(
         json.dumps(users, indent=2) + "\n",
         encoding="utf-8",
