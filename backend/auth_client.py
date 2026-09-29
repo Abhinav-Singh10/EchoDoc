@@ -80,24 +80,42 @@ async def main():
                 text += addition
                 update = local_doc.get_update(before)
 
+                request = document_pb2.SubmitUpdateRequest(
+                    document_id=selected.document_id,
+                    request_id=str(uuid.uuid4()),
+                    update=update,
+                )
+
                 try:
                     saved = await documents.SubmitUpdate(
-                        document_pb2.SubmitUpdateRequest(
+                        request, metadata=metadata, timeout=5,
+                    )
+
+                    repeated = await documents.SubmitUpdate(
+                        request, metadata=metadata, timeout=5,
+                    )
+
+                    current = await documents.GetDocument(
+                        document_pb2.GetDocumentRequest(
                             document_id=selected.document_id,
-                            request_id=str(uuid.uuid4()),
-                            update=update,
                         ),
                         metadata=metadata,
                         timeout=5,
                     )
                 except grpc.aio.AioRpcError as error:
                     print(
-                        "Save not confirmed:",
+                        "Request failed:",
                         error.code().name,
                         error.details(),
                     )
                 else:
-                    print("Saved revision:", saved.revision)
+                    print("First response:", saved.revision)
+                    print("Repeated response:", repeated.revision)
+                    print("Stored revision:", current.document.revision)
+
+                    assert saved.revision == repeated.revision
+                    assert current.document.revision == saved.revision
+                    print("Duplicate request check passed.")
 
         user = await stub.GetCurrentUser(
             Empty(),

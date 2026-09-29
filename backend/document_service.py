@@ -26,6 +26,16 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 revision INTEGER NOT NULL DEFAULT 0
             )
         """)
+        self.db.execute("""
+            CREATE TABLE IF NOT EXISTS updates (
+                document_id TEXT NOT NULL,
+                request_id TEXT NOT NULL,
+                author TEXT NOT NULL,
+                update_bytes BLOB NOT NULL,
+                revision INTEGER NOT NULL,
+                PRIMARY KEY (document_id, request_id)
+            )
+        """)
         self.db.commit()
 
     async def CreateDocument(self, request, context):
@@ -109,7 +119,14 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
 
 
     async def SubmitUpdate(self, request, context):
-        await self.auth.require_session(context)
+        _, session = await self.auth.require_session(context)
+        author = session["user"].user_id
+
+        if not request.request_id:
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT,
+                "Request ID is required",
+            )
 
         row = self.db.execute(
             "SELECT state, revision FROM documents WHERE id = ?",
@@ -120,6 +137,29 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             await context.abort(
                 grpc.StatusCode.NOT_FOUND,
                 "Document not found",
+            )
+
+        previous = self.db.execute(
+            """
+            SELECT author, update_bytes, revision
+            FROM updates
+            WHERE document_id = ? AND request_id = ?
+            """,
+            (request.document_id, request.request_id),
+        ).fetchone()
+
+        if previous is not None:
+            if (
+                previous["author"] != author
+                or previous["update_bytes"] != request.update
+            ):
+                await context.abort(
+                    grpc.StatusCode.ALREADY_EXISTS,
+                    "Request ID was already used for a different update",
+                )
+
+            return document_pb2.SubmitUpdateResponse(
+                revision=previous["revision"],
             )
 
         doc = Doc()
@@ -144,6 +184,22 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                     WHERE id = ?
                     """,
                     (doc.get_update(), revision, request.document_id),
+                )
+                self.db.execute(
+                    """
+                    INSERT INTO updates (
+                        document_id, request_id, author,
+                        update_bytes, revision
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                    """,
+                    (
+                        request.document_id,
+                        request.request_id,
+                        author,
+                        request.update,
+                        revision,
+                    ),
                 )
         except sqlite3.Error:
             await context.abort(
