@@ -14,6 +14,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
     def __init__(self, auth):
         self.auth = auth
         self.locks = defaultdict(asyncio.Lock)
+        self.subscribers = defaultdict(dict)
 
         database = Path("data/documents.sqlite3")
         database.parent.mkdir(parents=True, exist_ok=True)
@@ -212,6 +213,76 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                     "Could not save the document",
                 )
 
+            event = document_pb2.DocumentEvent(
+                kind="update",
+                update=request.update,
+                revision=revision,
+                request_id=request.request_id,
+            )
+
+            for queue in self.subscribers[request.document_id].values():
+                queue.put_nowait(event)
+
             return document_pb2.SubmitUpdateResponse(
                 revision=revision,
             )
+
+    async def WatchDocument(self, request, context):
+        await self.auth.require_session(context)
+
+        document_id = request.document_id
+        connection_id = request.connection_id
+
+        if not connection_id:
+            await context.abort(
+                grpc.StatusCode.INVALID_ARGUMENT,
+                "Connection ID is required",
+            )
+
+        queue = asyncio.Queue()
+
+        async with self.locks[document_id]:
+            row = self.db.execute(
+                "SELECT state, revision FROM documents WHERE id = ?",
+                (document_id,),
+            ).fetchone()
+
+            if row is None:
+                await context.abort(
+                    grpc.StatusCode.NOT_FOUND,
+                    "Document not found",
+                )
+
+            if connection_id in self.subscribers[document_id]:
+                await context.abort(
+                    grpc.StatusCode.ALREADY_EXISTS,
+                    "Connection is already subscribed",
+                )
+
+            snapshot = document_pb2.DocumentEvent(
+                kind="snapshot",
+                update=row["state"],
+                revision=row["revision"],
+            )
+
+            self.subscribers[document_id][connection_id] = queue
+
+        try:
+            await self.auth.require_session(context)
+            yield snapshot
+
+            while True:
+                await self.auth.require_session(context)
+
+                try:
+                    event = await asyncio.wait_for(
+                        queue.get(),
+                        timeout=1,
+                    )
+                except asyncio.TimeoutError:
+                    continue
+
+                await self.auth.require_session(context)
+                yield event
+        finally:
+            self.subscribers[document_id].pop(connection_id, None)
