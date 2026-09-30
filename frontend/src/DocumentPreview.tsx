@@ -15,9 +15,10 @@ type Props = {
   title: string;
   token: string;
   onPendingChange: (count: number) => void;
+  onClose: () => void;
 };
 
-export default function DocumentPreview({ documentId, title, token, onPendingChange }: Props) {
+export default function DocumentPreview({ documentId, title, token, onPendingChange, onClose }: Props) {
   const [local] = useState(() => ({
     doc: new Y.Doc(),
     version: 0,
@@ -364,9 +365,37 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
   return (
     <article aria-label="Shared document editor" className="editor-panel">
-      <h3>{title}</h3>
+      <div className="editor-heading">
+        <h3>{title}</h3>
+        {revision !== null && (
+          <p className="document-status">
+            Document revision: {revision.toString()} —{" "}
+            {connecting
+              ? "Reconnecting…"
+              : error
+                ? `Editing paused; ${pendingCount} unconfirmed update(s)`
+                : pendingCount > 0
+                  ? `Saving ${pendingCount} update(s)…`
+                  : "Saved"}
+          </p>
+        )}
+        {connected && (
+          <>
+            <p className="document-status" title="Includes this tab">Open connections: {users.length}</p>
+            <ul className="document-presence" aria-label="Participants">
+              {users.map((user) => (
+                <li key={user.connectionId}>{user.username} — {user.editing ? "editing" : "viewing"}</li>
+              ))}
+            </ul>
+          </>
+        )}
+        <button type="button" disabled={pendingCount > 0} onClick={onClose}>
+          Close preview
+        </button>
+      </div>
 
       {error && <p role="alert">{error}</p>}
+      {presenceError && <p role="status">{presenceError}</p>}
       {connected && pendingCount > 0 && (error || retrying) && (
         <button
           type="button"
@@ -388,30 +417,6 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         </button>
       )}
 
-      {revision !== null && (
-        <p>
-          Document revision: {revision.toString()} —{" "}
-          {connecting
-            ? "Reconnecting…"
-            : error
-              ? `Editing paused; ${pendingCount} unconfirmed update(s)`
-              : pendingCount > 0
-                ? `Saving ${pendingCount} update(s)…`
-                : "Saved"}
-        </p>
-      )}
-      {presenceError && <p role="status">{presenceError}</p>}
-      {connected && (
-        <div>
-          <p>Open connections, including this tab: {users.length}</p>
-
-          <ul>
-            {users.map((user) => (
-              <li key={user.connectionId}>{user.username} — {user.editing ? "editing" : "viewing"}</li>
-            ))}
-          </ul>
-        </div>
-      )}
       <div className="editor-columns"><div ref={element} />
       <WritingPanel editorRef={writingRef} documentId={documentId} token={token}
         ready={connected && !connecting && !error && pendingCount === 0}

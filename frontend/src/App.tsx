@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react'
 import DocumentList from './DocumentList'
-import './App.css'
 import './demo.css'
 import LoginPanel from './LoginPanel'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
@@ -16,7 +15,7 @@ function App() {
   }, [])
 
   return (
-    <main>
+    <main className={session ? 'signed-in' : undefined}>
       <header>
         <h1>EchoDoc</h1>
         <p className="eyebrow">ADVANCED OPERATING SYSTEMS · MILESTONE 1</p>

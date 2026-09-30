@@ -121,19 +121,14 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
       <div className="document-main">
       {!selected && <p className="empty-state">Create or open a document to begin collaborating.</p>}
       {selected && (
-        <>
-          <button type="button" disabled={pendingCount > 0} onClick={() => setSelected(null)}>
-            Close preview
-          </button>
-
           <DocumentPreview
             key={selected.documentId}
             documentId={selected.documentId}
             title={selected.title}
             token={token}
             onPendingChange={onPendingChange}
+            onClose={() => { if (!pendingCount) setSelected(null) }}
           />
-        </>
       )}
       </div>
     </section>
