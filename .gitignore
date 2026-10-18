@@ -2,3 +2,4 @@
 .venv/
 /backend/generated/
 dist/
+/backend
