@@ -30,3 +30,19 @@ python -m grpc_tools.protoc \
   proto/collab/system/v1/system.proto
 ```
 
+```bash
+source .venv/bin/activate
+PYTHONPATH=backend/generated python -m backend.server
+```
+open a 2nd terminal and run this for the client
+
+```bash
+source .venv/bin/activate
+PYTHONPATH=backend/generated python -m backend.client
+```
+
+add 2 client terminals and run for watch client .py
+
+```bash
+PYTHONPATH=backend/generated python -m backend.watch_client
+```
