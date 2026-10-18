@@ -46,20 +46,25 @@ add 2 client terminals and run for watch client .py
 ```bash
 PYTHONPATH=backend/generated python -m backend.watch_client
 ```
-frontend setup
+Frontend setup (from the repository root):
 
 ```bash
-mkdir frontend
 cd frontend
-npm create vite@latest . -- --template react-ts
+npm ci
+npm run generate
+npm run build
+cp .env.development.example .env.development
+npm run dev
 ```
 
-install these
-```bash
-npm install --save-exact @bufbuild/protobuf@2 @connectrpc/connect@2 @connectrpc/connect-web@2
+Run the npm commands from `frontend/`, where `package.json` lives. The recorded
+dependencies include the Buf CLI, TypeScript generator, and Protobuf/Connect
+runtimes. `npm run generate` reads `../proto` using the v2 configuration in
+`buf.gen.json` and writes TypeScript definitions to `src/gen/`. Regenerate after
+changing the `.proto` files, before building or starting the frontend.
 
-npm install --save-dev --save-exact @bufbuild/buf @bufbuild/protoc-gen-es@2
-```
+The development environment file points the browser client at Envoy on port
+8080. Start Python and Envoy before using the RPC buttons.
 
 ```bash
 
@@ -73,8 +78,4 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/envoy-keyring.gpg] https://a
 
 sudo apt update
 sudo apt install -y envoy
-```
-create file .env.development
-```
-VITE_RPC_BASE_URL=http://127.0.0.1:8080 
 ```
