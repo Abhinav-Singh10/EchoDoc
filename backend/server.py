@@ -19,8 +19,7 @@ async def serve():
     address = "127.0.0.1:50051"
     server.add_insecure_port(address)
     
-
-    server.add_insecure_port(address)
+    await server.start()
 
     print(f"Server listening on {address}", flush=True)
 
@@ -38,7 +37,6 @@ if __name__ == "__main__":
     )
 
     try:
-
         asyncio.run(serve())
     except KeyboardInterrupt:
         pass
