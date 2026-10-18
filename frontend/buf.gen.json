@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "plugins": [
+    {
+      "local": "protoc-gen-es",
+      "out": "src/gen",
+      "opt": [
+        "target=ts"
+      ]
+    }
+  ]
+}

@@ -16,9 +16,9 @@ async def serve():
 
     system_pb2_grpc.add_SystemServiceServicer_to_server(service, server)
 
-    address = os.getenv("APP_BIND", "127.0.0.1:50051")
-    if not server.add_insecure_port(address):
-        raise RuntimeError(f"Could not bind {address}")
+    address = "127.0.0.1:50051"
+    server.add_insecure_port(address)
+    
 
     server.add_insecure_port(address)
 
