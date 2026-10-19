@@ -27,8 +27,22 @@ python -m grpc_tools.protoc \
   -Iproto \
   --python_out=backend/generated \
   --grpc_python_out=backend/generated \
-  proto/collab/system/v1/system.proto
+  proto/collab/system/v1/system.proto \
+  proto/collab/auth/v1/auth.proto
 ```
+
+Generate both services before starting the backend. `npm run generate` generates
+the frontend TypeScript definitions only; Python needs the command above.
+
+On first setup, create the local demo accounts before starting the server:
+
+```bash
+python -m backend.seed_users
+```
+
+This prompts for passwords for `alice` and `bob` and writes their password hashes
+to the Git-ignored `backend/users.json`. Run it again only to replace the local
+demo accounts; the authentication service requires this file at startup.
 
 ```bash
 source .venv/bin/activate
