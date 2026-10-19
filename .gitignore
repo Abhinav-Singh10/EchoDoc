@@ -4,3 +4,4 @@
 dist/
 /backend/users.json
 /backend/__pycache__
+/data

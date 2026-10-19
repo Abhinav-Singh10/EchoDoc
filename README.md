@@ -22,12 +22,14 @@ python -m pip check
 
 ```bash
 mkdir -p backend/generated
+
 python -m grpc_tools.protoc \
   -Iproto \
   --python_out=backend/generated \
   --grpc_python_out=backend/generated \
   proto/collab/system/v1/system.proto \
-  proto/collab/auth/v1/auth.proto
+  proto/collab/auth/v1/auth.proto \
+  proto/collab/document/v1/document.proto
 ```
 
 Generate both services before starting the backend. `npm run generate` generates
@@ -49,7 +51,9 @@ demo accounts; the authentication service requires this file at startup.
 
 VITE_RPC_BASE_URL=http://127.0.0.1:8080
 ```
+
 Envoy running command
+
 ```
 envoy -c deploy/envoy.json --log-level info
 ```
