@@ -54,4 +54,28 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             document_id=document_id,
             title=title,
             revision=0,
+   )
+    
+    async def ListDocuments(self, request, context):
+        await self.auth.require_session(context)
+
+        rows = self.db.execute(
+            """
+            SELECT id, title, revision
+            FROM documents
+            ORDER BY title, id
+            """
+        ).fetchall()
+
+        documents = [
+            document_pb2.DocumentInfo(
+                document_id=row["id"],
+                title=row["title"],
+                revision=row["revision"],
+            )
+            for row in rows
+        ]
+
+        return document_pb2.ListDocumentsResponse(
+            documents=documents,
         )
