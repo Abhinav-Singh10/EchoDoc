@@ -5,3 +5,6 @@ argon2-cffi==25.1.0
 argon2-cffi-bindings==26.1.0
 cffi==2.1.1
 pycparser==3.0
+pycrdt==0.14.6
+anyio==4.15.1
+idna==3.20
