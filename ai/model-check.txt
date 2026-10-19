@@ -1,0 +1,21 @@
+Finding or downloading the model...
+Model file: /Users/abhinav/.cache/huggingface/hub/models--Qwen--Qwen2.5-1.5B-Instruct-GGUF/snapshots/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf
+Loading model...
+Model loaded in 7.26 seconds
+
+Grammar correction
+Input: The server send events every second. Each clients receives the updates until it disconnect.
+Output: The server sends events every second. Each client receives the updates until it disconnects.
+Time: 0.52 seconds
+Output tokens: 17
+Finish reason: stop
+
+Summary
+Input: The browser sends gRPC-Web requests to Envoy. Envoy translates them into native gRPC requests for the Python server. GetServerInfo returns one response. WatchEvents keeps sending events until the client cancels its subscription.
+Output: - Browser sends gRPC-Web requests to Envoy.
+- Envoy translates requests into native gRPC for Python server.
+- GetServerInfo returns one response.
+- WatchEvents keeps sending events until client cancels subscription.
+Time: 0.81 seconds
+Output tokens: 45
+Finish reason: stop
