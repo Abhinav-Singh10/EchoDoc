@@ -2,4 +2,5 @@
 .venv/
 /backend/generated/
 dist/
-/backend
+/backend/users.json
+/backend/__pycache__

@@ -8,13 +8,20 @@ import logging
 from backend.service import SystemService
 from collab.system.v1 import system_pb2_grpc
 
+from backend.auth_service import AuthService
+from collab.auth.v1 import auth_pb2_grpc
 
 async def serve():
 
     server = grpc.aio.server()
     service = SystemService()
+    auth_service = AuthService()
 
     system_pb2_grpc.add_SystemServiceServicer_to_server(service, server)
+        
+    auth_pb2_grpc.add_AuthServiceServicer_to_server(
+        auth_service, server
+    )
 
     address = "127.0.0.1:50051"
     server.add_insecure_port(address)
