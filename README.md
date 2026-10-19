@@ -20,7 +20,6 @@ python -m pip install -r backend/requirements.txt
 python -m pip check
 ```
 
-
 ```bash
 mkdir -p backend/generated
 python -m grpc_tools.protoc \
@@ -44,10 +43,23 @@ This prompts for passwords for `alice` and `bob` and writes their password hashe
 to the Git-ignored `backend/users.json`. Run it again only to replace the local
 demo accounts; the authentication service requires this file at startup.
 
+-> .env.development
+
+```dotenv
+
+VITE_RPC_BASE_URL=http://127.0.0.1:8080
+```
+Envoy running command
+```
+envoy -c deploy/envoy.json --log-level info
+```
+
 ```bash
+
 source .venv/bin/activate
 PYTHONPATH=backend/generated python -m backend.server
 ```
+
 open a 2nd terminal and run this for the client
 
 ```bash
@@ -60,6 +72,7 @@ add 2 client terminals and run for watch client .py
 ```bash
 PYTHONPATH=backend/generated python -m backend.watch_client
 ```
+
 Frontend setup (from the repository root):
 
 ```bash
