@@ -5,6 +5,7 @@ import type { ServerInfo } from './gen/collab/system/v1/system_pb'
 import { systemClient } from './rpc'
 import EventStream from './EventStream'
 import './App.css'
+import LoginPanel from './LoginPanel'
 
 function App() {
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null)
@@ -29,7 +30,7 @@ function App() {
   return (
     <main>
       <h1>System diagnostics</h1>
-
+      <LoginPanel />
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
       </button>
