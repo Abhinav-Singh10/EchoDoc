@@ -4,11 +4,12 @@ import { authClient } from "./rpc";
 import { useEffect, useState } from "react";
 
 type LoginPanelProps = {
-  session: LoginResponse | null
-  setSession: (session: LoginResponse | null) => void
-}
+  canLogout: boolean;
+  session: LoginResponse | null;
+  setSession: (session: LoginResponse | null) => void;
+};
 
-function LoginPanel({ session, setSession }: LoginPanelProps) {
+function LoginPanel({ session, setSession, canLogout }: LoginPanelProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,7 +102,7 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
   }
 
   async function logout() {
-    if (!session) return
+    if (!session || !canLogout) return
 
     setBusy(true)
     setError('')
@@ -173,7 +174,7 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
           Check session
         </button>
       
-        <button onClick={logout} disabled={busy}>
+        <button onClick={logout} disabled={busy || !canLogout}>
           Log out
         </button>
       
