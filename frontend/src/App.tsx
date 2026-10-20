@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback,  useState } from 'react'
 import type { ServerInfo } from './gen/collab/system/v1/system_pb'
 import { systemClient } from './rpc'
 import EventStream from './EventStream'
@@ -13,6 +13,12 @@ function App() {
   const [error, setError] = useState('')
   const [pendingCount, setPendingCount] = useState(0)
   const [session, setSession] = useState<LoginResponse | null>(null)
+
+  const [lastSession, setLastSession] = useState<LoginResponse | null>(null)
+  const changeSession = useCallback((next: LoginResponse | null) => {
+    setSession(next)
+    if (next) setLastSession(next)
+  }, [])
 
   async function loadServerInfo() {
     setLoading(true)
@@ -32,9 +38,11 @@ function App() {
   return (
     <main>
       <h1>System diagnostics</h1>
-      <LoginPanel session={session} setSession={setSession} canLogout={pendingCount === 0} />
-        {session && (
-         <DocumentList token={session.sessionToken} pendingCount={pendingCount} onPendingChange={setPendingCount} />
+      <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
+        lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
+        
+        {lastSession && (
+         <DocumentList key={lastSession.user?.userId} token={session?.sessionToken ?? ""} pendingCount={pendingCount} onPendingChange={setPendingCount} />
         )}
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
