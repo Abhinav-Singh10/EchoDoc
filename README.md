@@ -116,3 +116,8 @@ sudo apt install -y envoy
 cd frontend
 npm install yjs
 ```
+
+
+```bash
+npm install @codemirror/state @codemirror/view y-codemirror.next
+```
