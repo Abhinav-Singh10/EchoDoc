@@ -1,7 +1,7 @@
-import { Code, ConnectError } from '@connectrpc/connect'
-import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
-import { authClient } from './rpc'
-import { useEffect, useState } from 'react'
+import { Code, ConnectError } from "@connectrpc/connect";
+import type { LoginResponse } from "./gen/collab/auth/v1/auth_pb";
+import { authClient } from "./rpc";
+import { useEffect, useState } from "react";
 
 type LoginPanelProps = {
   session: LoginResponse | null
@@ -9,18 +9,19 @@ type LoginPanelProps = {
 }
 
 function LoginPanel({ session, setSession }: LoginPanelProps) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
-  const token = session?.sessionToken
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const token = session?.sessionToken;
+  const [watchAttempt, setWatchAttempt] = useState(0);
 
   useEffect(() => {
-    if (!token) return
-  
-    const controller = new AbortController()
-  
+    if (!token) return;
+
+    const controller = new AbortController();
+
     async function watchSession() {
       try {
         const stream = authClient.watchSession(
@@ -31,35 +32,35 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
             },
             signal: controller.signal,
           },
-        )
-  
+        );
+
         for await (const user of stream) {
-          if (controller.signal.aborted) return
-          setNotice(`Session active for ${user.username}.`)
+          if (controller.signal.aborted) return;
+          setNotice(`Session active for ${user.username}.`);
         }
-  
+
         if (!controller.signal.aborted) {
-          setError('Session stream ended.')
-          setError('Session stream ended. Restore the connection, then check session.')
+          setError(
+            "Session stream ended. Restore the connection, then check session.",
+          );
         }
       } catch (err) {
-        if (controller.signal.aborted) return
-    
-      if (
-        err instanceof ConnectError &&
-        err.code === Code.Unauthenticated
-      ) {
-        setSession(null)
-          setError('Your session expired or is no longer valid. Log in again.')
+        if (controller.signal.aborted) return;
+
+        if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+          setSession(null);
+          setError("Your session expired or is no longer valid. Log in again.");
         } else {
-          setError('Session connection lost. Restore the connection, then check session.')
+          setError(
+            "Session connection lost. Restore the connection, then check session.",
+          );
         }
       } finally {
         if (!controller.signal.aborted) {
-          setNotice('')
+          setNotice("");
+          }
         }
       }
-    }
   
     function leavePage() {
       controller.abort()
@@ -74,7 +75,7 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
       controller.abort()
       window.removeEventListener('pagehide', leavePage)
     }
-  }, [token, setSession])
+  }, [token, setSession, watchAttempt])
   
   async function login() {
   
@@ -146,7 +147,8 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
         },
       )
   
-      setNotice(`Session accepted by Python for ${user.username}.`)
+      setNotice(`Session accepted for ${user.username}.Restarting monitor...`)
+      setWatchAttempt(attempt => attempt+1)
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
         setSession(null)
@@ -202,7 +204,7 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
               <input
                 type="password"
                 value={password}
-                onChange={event => setPassword(event.target.value)}
+                onChange={(event) => setPassword(event.target.value)}                
                 autoComplete="current-password"
                 required
               />
