@@ -120,4 +120,5 @@ npm install yjs
 
 ```bash
 npm install @codemirror/state @codemirror/view y-codemirror.next
+npm install @codemirror/commands
 ```
