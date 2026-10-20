@@ -110,3 +110,9 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/envoy-keyring.gpg] https://a
 sudo apt update
 sudo apt install -y envoy
 ```
+
+
+```bash
+cd frontend
+npm install yjs
+```
