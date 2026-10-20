@@ -39,19 +39,23 @@ function LoginPanel({ session, setSession }: LoginPanelProps) {
         }
   
         if (!controller.signal.aborted) {
-          setError('Session stream ended. Log in again.')
+          setError('Session stream ended.')
+          setError('Session stream ended. Restore the connection, then check session.')
         }
       } catch (err) {
         if (controller.signal.aborted) return
-  
-        if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
+    
+      if (
+        err instanceof ConnectError &&
+        err.code === Code.Unauthenticated
+      ) {
+        setSession(null)
           setError('Your session expired or is no longer valid. Log in again.')
         } else {
-          setError('Session connection lost. Check Python and Envoy, then log in.')
+          setError('Session connection lost. Restore the connection, then check session.')
         }
       } finally {
         if (!controller.signal.aborted) {
-          setSession(null)
           setNotice('')
         }
       }
