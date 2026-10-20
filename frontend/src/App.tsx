@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ServerInfo } from './gen/collab/system/v1/system_pb'
 import { systemClient } from './rpc'
 import EventStream from './EventStream'
+import DocumentList from './DocumentList'
 import './App.css'
 import LoginPanel from './LoginPanel'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
@@ -32,7 +33,7 @@ function App() {
       <h1>System diagnostics</h1>
       <LoginPanel session={session} setSession={setSession} />
         {session && (
-          <p>Workspace ready for {session.user?.username}.</p>
+         <DocumentList token={session.sessionToken} />
         )}
       <button onClick={loadServerInfo} disabled={loading}>
         {loading ? 'Connecting…' : 'Get server info'}
