@@ -17,6 +17,9 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
+  const [connected, setConnected] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const retrySave = useRef<(() => Promise<void>) | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -33,7 +36,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
 
     let sending = false;
     let stopped = false;
-
+    let streamConnected = false;
     function editingExtensions(enabled: boolean) {
       return [
         EditorState.readOnly.of(!enabled),
@@ -103,7 +106,7 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       } catch {
         if (!controller.signal.aborted) {
           stopEditing(
-            "Saving was not confirmed. Copy your text before closing.",
+            "Saving was not confirmed. Retry if connected, or copy your text before closing.",
           );
         }
       } finally {
@@ -147,19 +150,29 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
 
           setRevision(event.revision)
           if (event.kind === "snapshot" && !stopped) {
-            editor.dispatch({
-              effects: editing.reconfigure(editingExtensions(true)),
-            });
+          if (event.kind === "snapshot") {
+            streamConnected = true;
+            setConnected(true);
+
+            if (!stopped) {
+              editor.dispatch({
+                effects: editing.reconfigure(editingExtensions(true)),
+              });
+            }
           }
         }
 
         if (!controller.signal.aborted) {
+          streamConnected = false;
+          setConnected(false);
           stopEditing(
             "Stream ended. Copy any unconfirmed text before closing.",
           );
         }
       } catch {
         if (!controller.signal.aborted) {
+          streamConnected = false;
+          setConnected(false);
           stopEditing(
             "Stream disconnected. Copy any unconfirmed text before closing.",
           );
@@ -167,9 +180,35 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       }
     }
 
+    retrySave.current = async () => {
+      if (sending || !streamConnected || controller.signal.aborted) {
+        return;
+      }
+
+      setRetrying(true);
+      setError("");
+      stopped = false;
+
+      try {
+        await flushUpdates();
+
+        if (!stopped && !controller.signal.aborted) {
+          editor.dispatch({
+            effects: editing.reconfigure(editingExtensions(true)),
+          });
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setRetrying(false);
+        }
+      }
+    };
+
+
     void watch()
 
     return () => {
+      retrySave.current = null;
       controller.abort();
       doc.off("update", onLocalUpdate);
       editor.destroy();
@@ -182,8 +221,19 @@ export default function DocumentPreview({ documentId, title, token }: Props) {
       <h3>{title}</h3>
 
       {error && <p role="alert">{error}</p>}
-      {revision === null && !error && <p>Connecting…</p>}
 
+      {revision === null && !error && <p>Connecting…</p>}
+      {connected && pendingCount > 0 && (error || retrying) && (
+        <button
+          type="button"
+          disabled={retrying}
+          onClick={() => {
+            void retrySave.current?.();
+          }}
+        >
+          {retrying ? "Retrying…" : "Retry save"}
+        </button>
+      )}
       {revision !== null && (
         <p>
           Received revision: {revision.toString()} —{" "}
