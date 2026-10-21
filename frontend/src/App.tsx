@@ -4,6 +4,7 @@ import { systemClient } from './rpc'
 import EventStream from './EventStream'
 import DocumentList from './DocumentList'
 import './App.css'
+import './demo.css'
 import LoginPanel from './LoginPanel'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 
