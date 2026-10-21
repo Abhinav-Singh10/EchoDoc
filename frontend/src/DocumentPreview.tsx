@@ -6,6 +6,7 @@ import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
 import { Action } from "./gen/collab/ai/v1/ai_pb";
+import WritingPanel from "./WritingPanel";
 import type { WritingEditor } from "./writing.";
 import type { Presence } from "./gen/collab/document/v1/document_pb";
 
@@ -427,6 +428,12 @@ export default function DocumentPreview({
       )}
 
       <div ref={element} />
+      <WritingPanel
+        editorRef={writingRef}
+        documentId={documentId}
+        token={token}
+        ready={connected && !connecting && !error && pendingCount === 0}
+      />
     </article>
   );
 }
