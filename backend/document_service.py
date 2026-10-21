@@ -2,6 +2,7 @@ import sqlite3
 import uuid
 import grpc
 import asyncio
+import os
 from google.protobuf.empty_pb2 import Empty
 
 from collections import defaultdict
@@ -12,15 +13,16 @@ from collab.document.v1 import document_pb2_grpc
 
 
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
-    def __init__(self, auth):
+    def __init__(self, auth, database=None):
         self.auth = auth
         self.locks = defaultdict(asyncio.Lock)
         self.subscribers = defaultdict(dict)
         self.presence = defaultdict(dict)
         self.presence_sessions = defaultdict(dict)
 
-
-        database = Path("data/documents.sqlite3")
+        database = Path(
+            database or os.getenv("DATABASE_PATH", "data/documents.sqlite3")
+        )
         database.parent.mkdir(parents=True, exist_ok=True)
 
         self.db = sqlite3.connect(database)
@@ -72,7 +74,8 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             document_id=document_id,
             title=title,
             revision=0,
-   )
+        )
+
     def broadcast_presence(self, document_id):
         event = document_pb2.DocumentEvent(
             kind="presence",
@@ -87,8 +90,10 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         doc_id, conn_id = request.document_id, request.connection_id
         async with self.locks[doc_id]:
             if self.presence_sessions[doc_id].get(conn_id) != token:
-                await context.abort(grpc.StatusCode.PERMISSION_DENIED,
-                                    "Presence belongs to an active connection in this session")
+                await context.abort(
+                    grpc.StatusCode.PERMISSION_DENIED,
+                    "Presence belongs to an active connection in this session",
+                )
             peer = self.presence[doc_id][conn_id]
             if peer.editing != request.editing:
                 peer.editing = request.editing
@@ -98,13 +103,11 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
     async def ListDocuments(self, request, context):
         await self.auth.require_session(context)
 
-        rows = self.db.execute(
-            """
+        rows = self.db.execute("""
             SELECT id, title, revision
             FROM documents
             ORDER BY title, id
-            """
-        ).fetchall()
+            """).fetchall()
 
         documents = [
             document_pb2.DocumentInfo(
@@ -117,8 +120,8 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
 
         return document_pb2.ListDocumentsResponse(
             documents=documents,
-    )
-    
+        )
+
     async def GetDocument(self, request, context):
         await self.auth.require_session(context)
 
@@ -144,8 +147,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 revision=row["revision"],
             ),
             state=row["state"],
-   )
-
+        )
 
     async def SubmitUpdate(self, request, context):
         _, session = await self.auth.require_session(context)
