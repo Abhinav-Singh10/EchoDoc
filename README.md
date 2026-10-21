@@ -23,13 +23,7 @@ python -m pip check
 ```bash
 mkdir -p backend/generated
 
-python -m grpc_tools.protoc \
-  -Iproto \
-  --python_out=backend/generated \
-  --grpc_python_out=backend/generated \
-  proto/collab/system/v1/system.proto \
-  proto/collab/auth/v1/auth.proto \
-  proto/collab/document/v1/document.proto
+python scripts/generate_protos.py
 ```
 
 Generate both services before starting the backend. `npm run generate` generates
@@ -94,8 +88,7 @@ runtimes. `npm run generate` reads `../proto` using the v2 configuration in
 `buf.gen.json` and writes TypeScript definitions to `src/gen/`. Regenerate after
 changing the `.proto` files, before building or starting the frontend.
 
-The development environment file points the browser client at Envoy on port
-8080. Start Python and Envoy before using the RPC buttons.
+The development environment file points the browser client at Envoy on port 8080. Start Python and Envoy before using the RPC buttons.
 
 ```bash
 
@@ -109,16 +102,4 @@ echo "deb [arch=amd64 signed-by=/usr/share/keyrings/envoy-keyring.gpg] https://a
 
 sudo apt update
 sudo apt install -y envoy
-```
-
-
-```bash
-cd frontend
-npm install yjs
-```
-
-
-```bash
-npm install @codemirror/state @codemirror/view y-codemirror.next
-npm install @codemirror/commands
 ```
