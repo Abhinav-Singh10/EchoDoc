@@ -48,9 +48,8 @@ async def serve():
         await server.wait_for_termination()
     finally:
         await server.stop(grace=3)
-
-    document_service.db.close()
-    await ai_channel.close()
+        document_service.db.close()
+        await ai_channel.close()
 
 
 if __name__ == "__main__":

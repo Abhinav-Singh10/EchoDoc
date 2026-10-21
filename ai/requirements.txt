@@ -20,4 +20,4 @@ truststore==0.10.4
 typing_extensions==4.16.0
 
 grpcio==1.78.0
-protobuf==6.33.5
+protobuf==6.33.6

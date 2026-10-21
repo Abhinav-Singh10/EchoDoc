@@ -1,6 +1,8 @@
 syntax = "proto3";
 package collab.ai.v1;
 
+import "google/protobuf/empty.proto";
+
 message AnswerRequest {
   string request_id = 1;
   Action action = 2;

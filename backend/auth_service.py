@@ -26,9 +26,8 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
         self.users = json.loads(users_file.read_text(encoding="utf-8"))
         self.hasher = PasswordHasher()
         self.sessions = {}
-        # session are stored in a python dict for now-> later we'll store it in a db
 
-        async def Login(self, request, context):
+    async def Login(self, request, context):
 
             account = self.users.get(request.username)
 
@@ -51,68 +50,67 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
                     "Incorrect username or password",
                 )
 
-        user = auth_pb2.User(
-            user_id=account["user_id"],
-            username=account["username"],
-        )
+            user = auth_pb2.User(
+                user_id=account["user_id"],
+                username=account["username"],
+            )
 
-        token = secrets.token_urlsafe(32)
-        expires_at = int(time.time()) + SESSION_SECONDS
+            token = secrets.token_urlsafe(32)
+            expires_at = int(time.time()) + SESSION_SECONDS
 
-        self.sessions[token] = {
-            "user": user,
-            "expires_at": expires_at,
-        }
+            self.sessions[token] = {
+                "user": user,
+                "expires_at": expires_at,
+            }
 
-        return auth_pb2.LoginResponse(
-            session_token=token,
-            user=user,
-            expires_at=Timestamp(seconds=expires_at),
-        )
+            return auth_pb2.LoginResponse(
+                session_token=token,
+                user=user,
+                expires_at=Timestamp(seconds=expires_at),
+            )
 
-        async def require_session(self, context):
+    async def require_session(self, context):
             metadata = dict(context.invocation_metadata())
+            authorization = metadata.get("authorization", "")
 
-        authorization = metadata.get("authorization", "")
+            if not authorization.startswith("Bearer "):
+                await context.abort(
+                    grpc.StatusCode.UNAUTHENTICATED,
+                    "Session token required",
+                )
 
-        if not authorization.startswith("Bearer "):
-            await context.abort(
-                grpc.StatusCode.UNAUTHENTICATED,
-                "Session token required",
-            )
+            token = authorization.removeprefix("Bearer ")
+            session = self.sessions.get(token)
 
-        token = authorization.removeprefix("Bearer ")
-        session = self.sessions.get(token)
+            if session is None:
+                await context.abort(
+                    grpc.StatusCode.UNAUTHENTICATED,
+                    "Invalid session",
+                )
 
-        if session is None:
-            await context.abort(
-                grpc.StatusCode.UNAUTHENTICATED,
-                "Invalid session",
-            )
+            if time.time() >= session["expires_at"]:
+                del self.sessions[token]
+                await context.abort(
+                    grpc.StatusCode.UNAUTHENTICATED,
+                    "Session expired",
+                )
 
-        if time.time() >= session["expires_at"]:
-            del self.sessions[token]
-            await context.abort(
-                grpc.StatusCode.UNAUTHENTICATED,
-                "Session expired",
-            )
+            return token, session
 
-        return token, session
-
-        async def GetCurrentUser(self, request, context):
+    async def GetCurrentUser(self, request, context):
             _, session = await self.require_session(context)
             return session["user"]
 
-        async def Logout(self, request, context):
+    async def Logout(self, request, context):
             token, _ = await self.require_session(context)
             del self.sessions[token]
             return Empty()
 
-        async def WatchSession(self, request, context):
+    async def WatchSession(self, request, context):
             try:
                 while True:
                     _, session = await self.require_session(context)
-                yield session["user"]
-                await asyncio.sleep(1)
+                    yield session["user"]
+                    await asyncio.sleep(1)
             finally:
                 print("WatchSession ended", flush=True)

@@ -18,6 +18,9 @@ protobuf==6.33.6
 ```bash
 python -m pip install -r backend/requirements.txt
 python -m pip check
+
+python -m pip install -r ai/requirements.txt
+python -m pip check
 ```
 
 ```bash
@@ -56,19 +59,6 @@ envoy -c deploy/envoy.json --log-level info
 
 source .venv/bin/activate
 PYTHONPATH=backend/generated python -m backend.server
-```
-
-open a 2nd terminal and run this for the client
-
-```bash
-source .venv/bin/activate
-PYTHONPATH=backend/generated python -m backend.client
-```
-
-add 2 client terminals and run for watch client .py
-
-```bash
-PYTHONPATH=backend/generated python -m backend.watch_client
 ```
 
 Frontend setup (from the repository root):
