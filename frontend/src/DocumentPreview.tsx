@@ -246,6 +246,13 @@ export default function DocumentPreview({
     doc.on("update", onLocalUpdate);
 
     async function watch() {
+      if (watching || controller.signal.aborted) return;
+      await Promise.resolve();
+      if (controller.signal.aborted) return;
+      setConnected(false);
+      setUsers([]);
+      setRetrying(false);
+      setConnecting(!!token);
       if (!token) {
         await Promise.resolve();
         if (!controller.signal.aborted) {
