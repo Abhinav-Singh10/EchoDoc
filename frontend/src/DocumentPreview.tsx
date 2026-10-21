@@ -5,6 +5,8 @@ import { defaultKeymap } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
+import { Action } from "./gen/collab/ai/v1/ai_pb";
+import type { WritingEditor } from "./writing.";
 import type { Presence } from "./gen/collab/document/v1/document_pb";
 
 type Props = {
@@ -14,11 +16,17 @@ type Props = {
   onPendingChange: (count: number) => void;
 };
 
-export default function DocumentPreview({ documentId, title, token, onPendingChange }: Props) {
+export default function DocumentPreview({
+  documentId,
+  title,
+  token,
+  onPendingChange,
+}: Props) {
   const [local] = useState(() => ({
     doc: new Y.Doc(),
     pending: [] as { requestId: string; update: Uint8Array }[],
   }));
+  const writingRef = useRef<WritingEditor | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
@@ -34,7 +42,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
   useEffect(() => {
     const controller = new AbortController();
     const doc = local.doc;
-    const text = doc.getText('content');
+    const text = doc.getText("content");
 
     const remoteOrigin = Symbol("server");
     const editing = new Compartment();
@@ -44,6 +52,8 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     let sending = false;
     let stopped = false;
     let streamConnected = false;
+    let latestRevision = 0n;
+    let version = 0;
     let watching = false;
     let connectionId = "";
     let lastEdit = 0;
@@ -52,20 +62,28 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
     async function sendPresence() {
       const active = Date.now() - lastEdit < 3000;
-      if (!streamConnected || presenceSending || lastPresence === active) return;
+      if (!streamConnected || presenceSending || lastPresence === active)
+        return;
       presenceSending = true;
       try {
-        await documentClient.updatePresence({ documentId, connectionId, editing: active }, {
-          headers: { authorization: `Bearer ${token}` }, timeoutMs: 5000,
-          signal: controller.signal,
-        });
+        await documentClient.updatePresence(
+          { documentId, connectionId, editing: active },
+          {
+            headers: { authorization: `Bearer ${token}` },
+            timeoutMs: 5000,
+            signal: controller.signal,
+          },
+        );
         if (!controller.signal.aborted) {
           lastPresence = active;
           setPresenceError("");
         }
       } catch {
-        if (!controller.signal.aborted) setPresenceError("Could not update editing status.");
-      } finally { presenceSending = false; }
+        if (!controller.signal.aborted)
+          setPresenceError("Could not update editing status.");
+      } finally {
+        presenceSending = false;
+      }
     }
     const presenceTimer = setInterval(() => void sendPresence(), 1000);
 
@@ -75,27 +93,60 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         EditorView.editable.of(enabled),
         keymap.of(enabled ? [...yUndoManagerKeymap, ...defaultKeymap] : []),
       ];
-    }    
+    }
 
     const editor = new EditorView({
       parent: element.current!,
       state: EditorState.create({
         doc: text.toString(),
         extensions: [
+          EditorView.updateListener.of((update) => {
+            if (update.docChanged || update.selectionSet) version++;
+          }),
           lineNumbers(),
           EditorView.lineWrapping,
           yCollab(text, null),
           editing.of(editingExtensions(false)),
           EditorView.contentAttributes.of({
-            'aria-label': 'Shared document',
+            "aria-label": "Shared document",
           }),
           EditorView.theme({
-            '&': { border: '1px solid #888' },
-            '.cm-content': { minHeight: '200px' },
+            "&": { border: "1px solid #888" },
+            ".cm-content": { minHeight: "200px" },
           }),
         ],
       }),
-    })
+    });
+
+    writingRef.current = {
+      capture(action) {
+        if (!streamConnected || stopped || pending.length)
+          throw new Error("Wait for Saved first.");
+        const { from, to } = editor.state.selection.main;
+        const full = editor.state.doc.toString();
+        if (
+          (action === Action.GRAMMAR || action === Action.ENHANCE) &&
+          from === to
+        ) {
+          throw new Error("Select a passage first.");
+        }
+        return {
+          action,
+          from,
+          to,
+          version,
+          revision: latestRevision,
+          token,
+          text:
+            action === Action.SUGGEST
+              ? full.slice(0, from)
+              : from === to
+                ? full
+                : full.slice(from, to),
+          context: action === Action.SUGGEST ? full.slice(to) : "",
+        };
+      },
+    };
 
     function stopEditing(message: string) {
       stopped = true;
@@ -115,7 +166,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         while (pending.length > 0 && !stopped && !controller.signal.aborted) {
           const next = pending[0];
 
-          await documentClient.submitUpdate(
+          const response = await documentClient.submitUpdate(
             {
               documentId,
               requestId: next.requestId,
@@ -131,6 +182,12 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
           );
 
           if (controller.signal.aborted) return;
+
+          latestRevision =
+            response.revision > latestRevision
+              ? response.revision
+              : latestRevision;
+          setRevision(latestRevision);
 
           pending.shift();
           setPendingCount(pending.length);
@@ -168,7 +225,9 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
       if (!token) {
         await Promise.resolve();
         if (!controller.signal.aborted) {
-          stopEditing("Log in again as the same user to recover pending edits.");
+          stopEditing(
+            "Log in again as the same user to recover pending edits.",
+          );
           setConnecting(false);
         }
         return;
@@ -191,7 +250,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
             },
             signal: controller.signal,
           },
-        )
+        );
 
         for await (const event of stream) {
           if (controller.signal.aborted) return;
@@ -207,8 +266,11 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
           Y.applyUpdate(doc, event.update, remoteOrigin);
 
-          setRevision(event.revision);
-          if (event.kind === "snapshot" ) {
+          latestRevision =
+            event.revision > latestRevision ? event.revision : latestRevision;
+          setRevision(latestRevision);
+
+          if (event.kind === "snapshot") {
             streamConnected = true;
             void sendPresence();
             setConnected(true);
@@ -232,9 +294,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         if (!controller.signal.aborted) {
           streamConnected = false;
           setConnected(false);
-          stopEditing(
-            "Stream ended. Restore the connection, then reconnect.",
-          );
+          stopEditing("Stream ended. Restore the connection, then reconnect.");
         }
       } catch {
         if (!controller.signal.aborted) {
@@ -250,8 +310,8 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
         if (!controller.signal.aborted) {
           setConnecting(false);
         }
+      }
     }
-  }
 
     retrySave.current = async () => {
       if (sending || !streamConnected || controller.signal.aborted) {
@@ -293,13 +353,17 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
     };
 
     function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      if (pending.length) { event.preventDefault(); event.returnValue = ""; }
+      if (pending.length) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
     }
     window.addEventListener("beforeunload", warnBeforeLeaving);
-    void watch()
+    void watch();
 
     return () => {
       window.removeEventListener("beforeunload", warnBeforeLeaving);
+      writingRef.current = null;
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
@@ -337,14 +401,14 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
       {revision !== null && (
         <p>
-          Received revision: {revision.toString()} —{" "}
+          Document revision: {revision.toString()} —{" "}
           {connecting
             ? "Reconnecting…"
             : error
               ? `Editing paused; ${pendingCount} unconfirmed update(s)`
               : pendingCount > 0
                 ? `Saving ${pendingCount} update(s)…`
-                : "Saved"} 
+                : "Saved"}
         </p>
       )}
       {presenceError && <p role="alert">{presenceError}</p>}
@@ -354,13 +418,15 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
 
           <ul>
             {users.map((user) => (
-               <li key={user.connectionId}>{user.username} — {user.editing ? "editing" : "viewing"}</li>
+              <li key={user.connectionId}>
+                {user.username} — {user.editing ? "editing" : "viewing"}
+              </li>
             ))}
           </ul>
         </div>
       )}
 
-       <div ref={element} />
+      <div ref={element} />
     </article>
-  )
+  );
 }
