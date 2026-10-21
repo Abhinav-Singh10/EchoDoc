@@ -1,0 +1,7 @@
+syntax = "proto3";
+package collab.ai.v1;
+
+message AnswerRequest {
+  string request_id = 1;
+  string text = 3;
+}
