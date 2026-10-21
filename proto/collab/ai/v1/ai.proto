@@ -23,3 +23,13 @@ enum Action {
   SUMMARIZE = 3;
   ENHANCE = 4;
 }
+
+message AIStatus {
+  bool ready = 1;
+  string model = 2;
+}
+
+service AIService {
+  rpc GetLLMAnswer(AnswerRequest) returns (AnswerResponse);
+  rpc GetStatus(google.protobuf.Empty) returns (AIStatus);
+}
