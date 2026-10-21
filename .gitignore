@@ -5,3 +5,4 @@ dist/
 /backend/users.json
 /backend/__pycache__
 /data
+/node_modules
