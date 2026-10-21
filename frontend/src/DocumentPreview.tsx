@@ -205,7 +205,7 @@ export default function DocumentPreview({ documentId, title, token, onPendingCha
             continue;
           }
 
-          Y.applyUpdate(doc, event.update)
+          Y.applyUpdate(doc, event.update, remoteOrigin);
 
           setRevision(event.revision);
           if (event.kind === "snapshot" ) {

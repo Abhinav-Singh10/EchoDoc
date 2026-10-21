@@ -192,16 +192,8 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                     revision=previous["revision"],
                 )
 
-        doc = Doc()
-        doc.apply_update(row["state"])
-
-        try:
-            doc.apply_update(request.update)
-        except Exception:
-            await context.abort(
-                grpc.StatusCode.INVALID_ARGUMENT,
-                "Invalid CRDT update",
-            )
+            doc = Doc()
+            doc.apply_update(row["state"])
 
             try:
                 doc.apply_update(request.update)
@@ -210,6 +202,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                     grpc.StatusCode.INVALID_ARGUMENT,
                     "Invalid CRDT update",
                 )
+
             revision = row["revision"] + 1
 
             try:
