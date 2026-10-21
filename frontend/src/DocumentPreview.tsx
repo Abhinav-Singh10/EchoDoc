@@ -25,8 +25,10 @@ export default function DocumentPreview({
 }: Props) {
   const [local] = useState(() => ({
     doc: new Y.Doc(),
+    version:0,
     pending: [] as { requestId: string; update: Uint8Array }[],
   }));
+  const [editVersion, setEditVersion] = useState(0);
   const writingRef = useRef<WritingEditor | null>(null);
   const element = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
@@ -54,7 +56,7 @@ export default function DocumentPreview({
     let stopped = false;
     let streamConnected = false;
     let latestRevision = 0n;
-    let version = 0;
+    let version = local.version;
     let watching = false;
     let connectionId = "";
     let lastEdit = 0;
@@ -102,7 +104,10 @@ export default function DocumentPreview({
         doc: text.toString(),
         extensions: [
           EditorView.updateListener.of((update) => {
-            if (update.docChanged || update.selectionSet) version++;
+            if (update.docChanged || update.selectionSet) {
+              local.version = ++version;
+              setEditVersion(version);
+            }
           }),
           lineNumbers(),
           EditorView.lineWrapping,
@@ -125,6 +130,7 @@ export default function DocumentPreview({
           throw new Error("Wait for Saved first.");
         const { from, to } = editor.state.selection.main;
         const full = editor.state.doc.toString();
+        if (action === Action.SUGGEST && from !== to) throw new Error("Place the cursor where the continuation should start.");
         if (
           (action === Action.GRAMMAR || action === Action.ENHANCE) &&
           from === to
@@ -146,6 +152,21 @@ export default function DocumentPreview({
                 : full.slice(from, to),
           context: action === Action.SUGGEST ? full.slice(to) : "",
         };
+      },
+      apply(target, answer) {
+        const current = editor.state.selection.main;
+        if (!streamConnected || stopped || pending.length || target.token !== token ||
+            target.revision !== latestRevision || target.version !== version ||
+            target.from !== current.from || target.to !== current.to) {
+          throw new Error("Document or selection changed. Request a fresh result.");
+        }
+        if (target.action === Action.SUMMARIZE) return;
+        let insert = answer;
+        if (target.action === Action.SUGGEST && target.from > 0 &&
+            !/\s$/.test(editor.state.doc.sliceString(0, target.from)) && !/^\s/.test(insert)) insert = " " + insert;
+        editor.dispatch({ changes: { from: target.from, to: target.to, insert },
+          selection: { anchor: target.from + insert.length }, userEvent: "input.ai" });
+        editor.focus();
       },
     };
 
@@ -432,8 +453,8 @@ export default function DocumentPreview({
         editorRef={writingRef}
         documentId={documentId}
         token={token}
-        ready={connected && !connecting && !error && pendingCount === 0}
-      />
+        ready={connected && !connecting && !error && pendingCount === 0} 
+        version={editVersion} revision={revision} />
     </article>
   );
 }

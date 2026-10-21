@@ -6,3 +6,4 @@ dist/
 /backend/__pycache__
 /data
 /node_modules
+/ai/__pycache__

@@ -59,6 +59,9 @@ envoy -c deploy/envoy.json --log-level info
 
 source .venv/bin/activate
 PYTHONPATH=backend/generated python -m backend.server
+
+source .venv/bin/activate
+PYTHONPATH=backend/generated python -m ai.server
 ```
 
 Frontend setup (from the repository root):

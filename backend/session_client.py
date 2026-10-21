@@ -30,7 +30,7 @@ async def main():
         stream = stub.WatchSession(
             Empty(),
             metadata=metadata,
-            timeout=1800,
+            timeout=15,
         )
 
         count = 0
