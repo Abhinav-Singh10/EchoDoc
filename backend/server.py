@@ -10,6 +10,8 @@ from collab.system.v1 import system_pb2_grpc
 
 from backend.document_service import DocumentService
 from collab.document.v1 import document_pb2_grpc
+from backend.writing_service import WritingService
+from collab.ai.v1 import ai_pb2_grpc
 
 from backend.auth_service import AuthService
 from collab.auth.v1 import auth_pb2_grpc
@@ -21,6 +23,10 @@ async def serve():
     service = SystemService()
     auth_service = AuthService()
     document_service = DocumentService(auth_service)
+    ai_channel = grpc.aio.insecure_channel(os.getenv("AI_ADDRESS", "127.0.0.1:50052"))
+    ai_pb2_grpc.add_WritingServiceServicer_to_server(
+        WritingService(auth_service, document_service, ai_channel), server
+    )
 
     document_pb2_grpc.add_DocumentServiceServicer_to_server(document_service, server)
 
@@ -44,6 +50,7 @@ async def serve():
         await server.stop(grace=3)
 
     document_service.db.close()
+    await ai_channel.close()
 
 
 if __name__ == "__main__":
