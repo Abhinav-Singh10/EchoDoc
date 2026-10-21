@@ -5,6 +5,9 @@ message AnswerRequest {
   string request_id = 1;
   Action action = 2;
   string text = 3;
+  string context = 4;
+  uint64 source_revision = 5;
+  string document_id = 6;
 }
 
 message AnswerResponse {
