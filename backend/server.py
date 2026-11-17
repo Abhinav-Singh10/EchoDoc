@@ -40,6 +40,7 @@ async def serve():
 
     await server.start()
 
+    print(f"Node: {service.server_id}", flush=True)
     print(f"Server listening on {address}", flush=True)
 
     print(f"Process instance: {service.process_instance_id}", flush=True)

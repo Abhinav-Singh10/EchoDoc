@@ -1,0 +1,12 @@
+{
+  "nodes": [
+    { "id": "app-1", "app_port": 53051, "database": "data/cluster/app-1.sqlite3" },
+    { "id": "app-2", "app_port": 53052, "database": "data/cluster/app-2.sqlite3" },
+    { "id": "app-3", "app_port": 53053, "database": "data/cluster/app-3.sqlite3" }
+  ],
+  "ai_port": 53054,
+  "gateway_port": 8282,
+  "frontend_port": 5373,
+  "frontend_host": "127.0.0.1",
+  "users": "data/cluster/users.json"
+}

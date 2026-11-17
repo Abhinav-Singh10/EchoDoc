@@ -5,6 +5,5 @@
     "frontend_port": 5273,
     "frontend_host": "127.0.0.1",
     "database": "data/demo/documents.sqlite3",
-    "users": "data/demo/users.json",
-    "ai_python": "ai/.venv/bin/python"
+    "users": "data/demo/users.json"
   }
