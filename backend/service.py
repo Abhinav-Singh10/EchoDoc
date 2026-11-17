@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 
 class SystemService(system_pb2_grpc.SystemServiceServicer):
 
-    def __init__(self):
-        self.server_id = os.environ.get("SERVER_ID", "app-1")
+    def __init__(self, raft_node=None):
+        self.raft_node = raft_node
+        self.server_id = raft_node.node_id if raft_node else os.environ.get("SERVER_ID", "app-1")
         self.process_instance_id = str(uuid.uuid4())
         self.started_at = time.monotonic()
 
@@ -26,6 +27,9 @@ class SystemService(system_pb2_grpc.SystemServiceServicer):
             process_instance_id=self.process_instance_id,
             application_version=APPLICATION_VERSION,
             uptime_seconds=time.monotonic() - self.started_at,
+            raft_role=self.raft_node.role if self.raft_node else "disabled",
+            raft_term=self.raft_node.term if self.raft_node else 0,
+            raft_leader_id=self.raft_node.leader_id if self.raft_node else "",
         )
 
     async def WatchEvents(self, request, context):

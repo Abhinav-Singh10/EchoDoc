@@ -1,4 +1,4 @@
-"""Start one local app or three independent nodes. Raft is not implemented yet."""
+"""Start the local app with Raft elections. Documents do not replicate yet."""
 
 import argparse
 import json
@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_config(path):
     config = json.loads((ROOT / path).read_text())
-    # Keep the existing local/demo format working.
+    # Expand the single-node configuration into the same list used by the cluster.
     if "nodes" not in config:
         config["nodes"] = [{
             "id": "app-1", "app_port": config["app_port"],
@@ -69,7 +69,7 @@ def check_setup(config):
             f"python -m backend.seed_users --output '{config['users']}'. "
             "Add --demo only for disposable demo accounts."
         )
-    for service in ("auth", "document", "system", "ai"):
+    for service in ("auth", "document", "system", "ai", "raft"):
         generated = ROOT / f"backend/generated/collab/{service}/v1/{service}_pb2_grpc.py"
         if not generated.is_file():
             raise ValueError("Missing Python RPC definitions. Run python scripts/generate_protos.py.")
@@ -146,11 +146,13 @@ def main(argv=None):
         gateway = Path(folder) / "envoy.json"
         gateway.write_text(json.dumps(gateway_config(config)))
         commands = []
+        members = {node["id"]: f"127.0.0.1:{node['app_port']}" for node in config["nodes"]}
         for node in config["nodes"]:
             node_env = dict(
                 env, SERVER_ID=node["id"],
                 APP_BIND=f"127.0.0.1:{node['app_port']}",
                 DATABASE_PATH=str(ROOT / node["database"]),
+                RAFT_MEMBERS=json.dumps(members),
             )
             commands.append((node["id"], [sys.executable, "-u", "-m", "backend.server"], node_env))
             print(f"{node['id']}: port {node['app_port']}, database {node_env['DATABASE_PATH']}", flush=True)

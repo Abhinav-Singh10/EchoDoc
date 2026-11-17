@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package collab.raft.v1;
 
-// Contracts only: nodes do not serve these RPCs until elections are added.
+// Elections and empty heartbeats are supported; log replication comes later.
 service RaftService {
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);

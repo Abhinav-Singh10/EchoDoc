@@ -15,6 +15,9 @@ message ServerInfo {
   string process_instance_id = 2;
   string application_version = 3;
   double uptime_seconds = 4;
+  string raft_role = 5;
+  uint64 raft_term = 6;
+  string raft_leader_id = 7;
 }
 
 message ServerEvent {

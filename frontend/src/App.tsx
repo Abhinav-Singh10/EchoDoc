@@ -3,6 +3,7 @@ import DocumentList from './DocumentList'
 import './App.css'
 import './demo.css'
 import LoginPanel from './LoginPanel'
+import RaftStatus from './RaftStatus'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
         <h1>EchoDoc</h1>
         <p>Collaborative notes with real-time editing and local AI assistance.</p>
       </header>
+      <RaftStatus />
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
         lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
         

@@ -3,6 +3,7 @@ import { createGrpcWebTransport } from "@connectrpc/connect-web";
 import { AuthService } from "./gen/collab/auth/v1/auth_pb";
 import { WritingService } from "./gen/collab/ai/v1/ai_pb";
 import { DocumentService } from "./gen/collab/document/v1/document_pb";
+import { SystemService } from "./gen/collab/system/v1/system_pb";
 
 const baseUrl =
   import.meta.env.VITE_RPC_BASE_URL || `${window.location.origin}/rpc`;
@@ -17,3 +18,5 @@ export const authClient = createClient(AuthService, transport);
 export const documentClient = createClient(DocumentService, transport);
 
 export const writingClient = createClient(WritingService, transport);
+
+export const systemClient = createClient(SystemService, transport);
