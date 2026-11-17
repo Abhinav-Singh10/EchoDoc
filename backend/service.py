@@ -21,15 +21,13 @@ class SystemService(system_pb2_grpc.SystemServiceServicer):
         self.started_at = time.monotonic()
 
     async def GetServerInfo(self, request, context):
-
+        status = await self.raft_node.get_status() if self.raft_node else {"raft_role": "disabled"}
         return system_pb2.ServerInfo(
             server_id=self.server_id,
             process_instance_id=self.process_instance_id,
             application_version=APPLICATION_VERSION,
             uptime_seconds=time.monotonic() - self.started_at,
-            raft_role=self.raft_node.role if self.raft_node else "disabled",
-            raft_term=self.raft_node.term if self.raft_node else 0,
-            raft_leader_id=self.raft_node.leader_id if self.raft_node else "",
+            **status,
         )
 
     async def WatchEvents(self, request, context):

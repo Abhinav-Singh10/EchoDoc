@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package collab.raft.v1;
 
-// Elections and empty heartbeats are supported; log replication comes later.
+// Log replication and commitment; document application is added separately.
 service RaftService {
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
@@ -46,8 +46,11 @@ message Command {
   oneof command {
     CreateDocumentCommand create_document = 1;
     SubmitUpdateCommand submit_update = 2;
+    NoOpCommand no_op = 3;
   }
 }
+
+message NoOpCommand {}
 
 message CreateDocumentCommand {
   string document_id = 1;

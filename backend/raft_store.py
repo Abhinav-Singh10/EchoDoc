@@ -1,4 +1,4 @@
-"""Durable Raft term, vote, and log. No election or replication logic yet."""
+"""Durable Raft term, vote, and log. Protocol decisions belong to RaftNode."""
 
 from pathlib import Path
 import sqlite3
@@ -73,12 +73,14 @@ class RaftStore:
             return None
         return raft_pb2.LogEntry(index=row["log_index"], term=row["term"], command=row["command"])
 
-    def read_entries(self, start_index=1):
+    def read_entries(self, start_index=1, limit=None):
         self._check_index(start_index)
+        if limit is not None and (type(limit) is not int or limit < 1):
+            raise ValueError("Log read limit must be a positive integer or None")
         rows = self._db.execute("""
             SELECT log_index, term, command FROM raft_log
-            WHERE log_index >= ? ORDER BY log_index
-        """, (start_index,)).fetchall()
+            WHERE log_index >= ? ORDER BY log_index LIMIT ?
+        """, (start_index, limit if limit is not None else -1)).fetchall()
         return [raft_pb2.LogEntry(
             index=row["log_index"], term=row["term"], command=row["command"],
         ) for row in rows]

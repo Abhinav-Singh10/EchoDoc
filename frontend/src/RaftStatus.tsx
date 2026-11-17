@@ -43,11 +43,13 @@ export default function RaftStatus() {
           <>Connected backend: <strong>{info.serverId}</strong>
             {' · '}Raft role: <strong>{info.raftRole}</strong>
             {' · '}Term: {info.raftTerm.toString()}
-            {' · '}Known leader: {info.raftLeaderId || 'unknown'}</>
+            {' · '}Known leader: {info.raftLeaderId || 'unknown'}
+            {' · '}Last log index: {info.raftLastLogIndex.toString()}
+            {' · '}Commit index: {info.raftCommitIndex.toString()}</>
         ) : 'Checking backend…'}
       </p>
       <p className="raft-note">This is the connected backend’s view. The gateway stays on app-1;
-        documents are not replicated yet.</p>
+        documents are not replicated yet. Committed log entries are not applied to documents yet.</p>
     </section>
   )
 }
