@@ -18,7 +18,10 @@ function App() {
 
   return (
     <main>
-      <h1>System diagnostics</h1>
+      <header>
+        <h1>EchoDoc</h1>
+        <p>Collaborative notes with real-time editing and local AI assistance.</p>
+      </header>
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
         lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
         
