@@ -1,52 +1,25 @@
-import sqlite3
 import uuid
 import grpc
 import asyncio
-import os
 from google.protobuf.empty_pb2 import Empty
 
 from collections import defaultdict
 from pycrdt import Doc, Text
 from collab.document.v1 import document_pb2
-from pathlib import Path
 from collab.document.v1 import document_pb2_grpc
+from backend.document_store import (
+    CreateDocumentCommand, DocumentStore, StoreError, SubmitUpdateCommand,
+)
 
 
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
-    def __init__(self, auth, database=None):
+    def __init__(self, auth, store: DocumentStore):
         self.auth = auth
+        self.store = store
         self.locks = defaultdict(asyncio.Lock)
         self.subscribers = defaultdict(dict)
         self.presence = defaultdict(dict)
         self.presence_sessions = defaultdict(dict)
-
-        database = Path(
-            database or os.getenv("DATABASE_PATH", "data/documents.sqlite3")
-        )
-        database.parent.mkdir(parents=True, exist_ok=True)
-
-        self.db = sqlite3.connect(database)
-        self.db.row_factory = sqlite3.Row
-
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS documents (
-                id TEXT PRIMARY KEY,
-                title TEXT NOT NULL,
-                state BLOB NOT NULL,
-                revision INTEGER NOT NULL DEFAULT 0
-            )
-        """)
-        self.db.execute("""
-            CREATE TABLE IF NOT EXISTS updates (
-                document_id TEXT NOT NULL,
-                request_id TEXT NOT NULL,
-                author TEXT NOT NULL,
-                update_bytes BLOB NOT NULL,
-                revision INTEGER NOT NULL,
-                PRIMARY KEY (document_id, request_id)
-            )
-        """)
-        self.db.commit()
 
     async def CreateDocument(self, request, context):
         await self.auth.require_session(context)
@@ -61,19 +34,16 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         document_id = str(uuid.uuid4())
         doc = Doc({"content": Text()})
 
-        with self.db:
-            self.db.execute(
-                """
-                INSERT INTO documents (id, title, state, revision)
-                VALUES (?, ?, ?, ?)
-                """,
-                (document_id, title, doc.get_update(), 0),
-            )
+        command = CreateDocumentCommand(document_id, title, doc.get_update())
+        try:
+            result = self.store.apply(command)
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
 
         return document_pb2.DocumentInfo(
             document_id=document_id,
             title=title,
-            revision=0,
+            revision=result.revision,
         )
 
     def broadcast_presence(self, document_id):
@@ -103,15 +73,14 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
     async def ListDocuments(self, request, context):
         await self.auth.require_session(context)
 
-        rows = self.db.execute("""
-            SELECT id, title, revision
-            FROM documents
-            ORDER BY title, id
-            """).fetchall()
+        try:
+            rows = self.store.list_documents()
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
 
         documents = [
             document_pb2.DocumentInfo(
-                document_id=row["id"],
+                document_id=row["document_id"],
                 title=row["title"],
                 revision=row["revision"],
             )
@@ -125,24 +94,14 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
     async def GetDocument(self, request, context):
         await self.auth.require_session(context)
 
-        row = self.db.execute(
-            """
-            SELECT id, title, state, revision
-            FROM documents
-            WHERE id = ?
-            """,
-            (request.document_id,),
-        ).fetchone()
-
-        if row is None:
-            await context.abort(
-                grpc.StatusCode.NOT_FOUND,
-                "Document not found",
-            )
+        try:
+            row = self.store.get_document(request.document_id)
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
 
         return document_pb2.GetDocumentResponse(
             document=document_pb2.DocumentInfo(
-                document_id=row["id"],
+                document_id=row["document_id"],
                 title=row["title"],
                 revision=row["revision"],
             ),
@@ -159,100 +118,25 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 "Request ID is required",
             )
 
+        command = SubmitUpdateCommand(
+            document_id=request.document_id, request_id=request.request_id,
+            author=author, update=request.update,
+        )
         async with self.locks[request.document_id]:
-            row = self.db.execute(
-                "SELECT state, revision FROM documents WHERE id = ?",
-                (request.document_id,),
-            ).fetchone()
-
-            if row is None:
-                await context.abort(
-                    grpc.StatusCode.NOT_FOUND,
-                    "Document not found",
-                )
-
-            previous = self.db.execute(
-                """
-                SELECT author, update_bytes, revision
-                FROM updates
-                WHERE document_id = ? AND request_id = ?
-                """,
-                (request.document_id, request.request_id),
-            ).fetchone()
-
-            if previous is not None:
-                if (
-                    previous["author"] != author
-                    or previous["update_bytes"] != request.update
-                ):
-                    await context.abort(
-                        grpc.StatusCode.ALREADY_EXISTS,
-                        "Request ID was already used for a different update",
-                    )
-
-                return document_pb2.SubmitUpdateResponse(
-                    revision=previous["revision"],
-                )
-
-            doc = Doc()
-            doc.apply_update(row["state"])
-
             try:
-                doc.apply_update(request.update)
-            except Exception:
-                await context.abort(
-                    grpc.StatusCode.INVALID_ARGUMENT,
-                    "Invalid CRDT update",
+                result = self.store.apply(command)
+            except StoreError as error:
+                await context.abort(grpc.StatusCode[error.code], str(error))
+
+            if result.changed:
+                event = document_pb2.DocumentEvent(
+                    kind="update", update=request.update, revision=result.revision,
+                    request_id=request.request_id,
                 )
+                for queue in self.subscribers[request.document_id].values():
+                    queue.put_nowait(event)
 
-            revision = row["revision"] + 1
-
-            try:
-                with self.db:
-                    self.db.execute(
-                        """
-                        UPDATE documents
-                        SET state = ?, revision = ?
-                        WHERE id = ?
-                        """,
-                        (doc.get_update(), revision, request.document_id),
-                    )
-
-                    self.db.execute(
-                        """
-                        INSERT INTO updates (
-                            document_id, request_id, author,
-                            update_bytes, revision
-                        )
-                        VALUES (?, ?, ?, ?, ?)
-                        """,
-                        (
-                            request.document_id,
-                            request.request_id,
-                            author,
-                            request.update,
-                            revision,
-                        ),
-                    )
-            except sqlite3.Error:
-                await context.abort(
-                    grpc.StatusCode.INTERNAL,
-                    "Could not save the document",
-                )
-
-            event = document_pb2.DocumentEvent(
-                kind="update",
-                update=request.update,
-                revision=revision,
-                request_id=request.request_id,
-            )
-
-            for queue in self.subscribers[request.document_id].values():
-                queue.put_nowait(event)
-
-            return document_pb2.SubmitUpdateResponse(
-                revision=revision,
-            )
+            return document_pb2.SubmitUpdateResponse(revision=result.revision)
 
     async def WatchDocument(self, request, context):
         token, session = await self.auth.require_session(context)
@@ -269,16 +153,10 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         queue = asyncio.Queue()
 
         async with self.locks[document_id]:
-            row = self.db.execute(
-                "SELECT state, revision FROM documents WHERE id = ?",
-                (document_id,),
-            ).fetchone()
-
-            if row is None:
-                await context.abort(
-                    grpc.StatusCode.NOT_FOUND,
-                    "Document not found",
-                )
+            try:
+                row = self.store.get_document(document_id)
+            except StoreError as error:
+                await context.abort(grpc.StatusCode[error.code], str(error))
 
             if connection_id in self.subscribers[document_id]:
                 await context.abort(

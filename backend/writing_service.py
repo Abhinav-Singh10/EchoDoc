@@ -3,23 +3,23 @@
 import grpc
 from collab.ai.v1 import ai_pb2_grpc
 from ai.validation import validate
+from backend.document_store import DocumentStore, StoreError
 
 
 class WritingService(ai_pb2_grpc.WritingServiceServicer):
-    def __init__(self, auth, documents, channel):
+    def __init__(self, auth, store: DocumentStore, channel):
         self.auth = auth
-        self.documents = documents
+        self.store = store
         self.client = ai_pb2_grpc.AIServiceStub(channel)
 
     async def GetLLMAnswer(self, request, context):
         await self.auth.require_session(context)
         await validate(request, context)
-        row = self.documents.db.execute(
-            "SELECT revision FROM documents WHERE id = ?", (request.document_id,)
-        ).fetchone()
-        if row is None:
-            await context.abort(grpc.StatusCode.NOT_FOUND, "Document not found")
-        if row["revision"] != request.source_revision:
+        try:
+            revision = self.store.get_revision(request.document_id)
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
+        if revision != request.source_revision:
             await context.abort(
                 grpc.StatusCode.FAILED_PRECONDITION,
                 "Document changed; request a fresh result",

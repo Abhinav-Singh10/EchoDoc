@@ -3,7 +3,6 @@
 /backend/generated/
 dist/
 /backend/users.json
-/backend/__pycache__
+__pycache__/
 /data
 /node_modules
-/ai/__pycache__
