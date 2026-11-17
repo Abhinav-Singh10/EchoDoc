@@ -20,6 +20,7 @@ message ServerInfo {
   string raft_leader_id = 7;
   uint64 raft_last_log_index = 8;
   uint64 raft_commit_index = 9;
+  uint64 raft_last_applied = 10;
 }
 
 message ServerEvent {

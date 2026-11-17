@@ -45,11 +45,12 @@ export default function RaftStatus() {
             {' · '}Term: {info.raftTerm.toString()}
             {' · '}Known leader: {info.raftLeaderId || 'unknown'}
             {' · '}Last log index: {info.raftLastLogIndex.toString()}
-            {' · '}Commit index: {info.raftCommitIndex.toString()}</>
+            {' · '}Commit index: {info.raftCommitIndex.toString()}
+            {' · '}Applied index: {info.raftLastApplied.toString()}</>
         ) : 'Checking backend…'}
       </p>
-      <p className="raft-note">This is the connected backend’s view. The gateway stays on app-1;
-        documents are not replicated yet. Committed log entries are not applied to documents yet.</p>
+      <p className="raft-note">This is the connected backend’s view. Documents and sessions replicate;
+        writes forward to the leader. The gateway stays on app-1; local reads may lag.</p>
     </section>
   )
 }

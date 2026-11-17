@@ -1,4 +1,4 @@
-"""Start the local app with Raft elections. Documents do not replicate yet."""
+"""Start the local app with replicated documents and sessions through Raft."""
 
 import argparse
 import json
@@ -167,7 +167,7 @@ def main(argv=None):
                 children.append((name, child))
                 print(f"Started {name} (PID {child.pid})", flush=True)
             print(f"Open http://{env['FRONTEND_HOST']}:{config['frontend_port']} - wait for AI ready.", flush=True)
-            print(f"Gateway targets {config['nodes'][0]['id']} only. Documents do not replicate yet.", flush=True)
+            print(f"Gateway targets {config['nodes'][0]['id']} only. Writes forward to the elected leader.", flush=True)
             print("Ctrl+C stops only this launcher's processes.", flush=True)
             reported = set()
             while True:

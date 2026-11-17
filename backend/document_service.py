@@ -7,21 +7,28 @@ from collections import defaultdict
 from pycrdt import Doc, Text
 from collab.document.v1 import document_pb2
 from collab.document.v1 import document_pb2_grpc
-from backend.document_store import (
-    CreateDocumentCommand, DocumentStore, StoreError, SubmitUpdateCommand,
-)
+from backend.commands import CreateDocumentCommand, SubmitUpdateCommand
+from backend.document_store import DocumentStore, StoreError
+from backend.mutations import route_write, submit_write
 
 
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
-    def __init__(self, auth, store: DocumentStore):
+    def __init__(self, auth, store: DocumentStore, raft, state_machine):
         self.auth = auth
         self.store = store
-        self.locks = defaultdict(asyncio.Lock)
+        self.raft = raft
+        self.locks = state_machine.locks
+        state_machine.on_update = self.broadcast_update
         self.subscribers = defaultdict(dict)
         self.presence = defaultdict(dict)
         self.presence_sessions = defaultdict(dict)
 
     async def CreateDocument(self, request, context):
+        forwarded, deadline = await route_write(
+            self.raft, request, context, document_pb2_grpc.DocumentServiceStub, "CreateDocument",
+        )
+        if forwarded is not None:
+            return forwarded
         await self.auth.require_session(context)
 
         title = request.title.strip()
@@ -35,10 +42,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         doc = Doc({"content": Text()})
 
         command = CreateDocumentCommand(document_id, title, doc.get_update())
-        try:
-            result = self.store.apply(command)
-        except StoreError as error:
-            await context.abort(grpc.StatusCode[error.code], str(error))
+        result = await submit_write(self.raft, self.store, command, context, deadline)
 
         return document_pb2.DocumentInfo(
             document_id=document_id,
@@ -109,6 +113,11 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         )
 
     async def SubmitUpdate(self, request, context):
+        forwarded, deadline = await route_write(
+            self.raft, request, context, document_pb2_grpc.DocumentServiceStub, "SubmitUpdate",
+        )
+        if forwarded is not None:
+            return forwarded
         _, session = await self.auth.require_session(context)
         author = session["user"].user_id
 
@@ -122,21 +131,17 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             document_id=request.document_id, request_id=request.request_id,
             author=author, update=request.update,
         )
-        async with self.locks[request.document_id]:
-            try:
-                result = self.store.apply(command)
-            except StoreError as error:
-                await context.abort(grpc.StatusCode[error.code], str(error))
+        # The application worker takes the document lock; never hold it here.
+        result = await submit_write(self.raft, self.store, command, context, deadline)
+        return document_pb2.SubmitUpdateResponse(revision=result.revision)
 
-            if result.changed:
-                event = document_pb2.DocumentEvent(
-                    kind="update", update=request.update, revision=result.revision,
-                    request_id=request.request_id,
-                )
-                for queue in self.subscribers[request.document_id].values():
-                    queue.put_nowait(event)
-
-            return document_pb2.SubmitUpdateResponse(revision=result.revision)
+    def broadcast_update(self, command, outcome):
+        event = document_pb2.DocumentEvent(
+            kind="update", update=command.update, revision=outcome.revision,
+            request_id=command.request_id,
+        )
+        for queue in self.subscribers[command.document_id].values():
+            queue.put_nowait(event)
 
     async def WatchDocument(self, request, context):
         token, session = await self.auth.require_session(context)

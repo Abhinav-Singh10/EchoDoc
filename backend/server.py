@@ -14,7 +14,8 @@ from collab.system.v1 import system_pb2_grpc
 from backend.document_service import DocumentService
 from backend.document_store import DocumentStore
 from backend.raft_store import RaftStore
-from backend.raft_node import RaftNode
+from backend.raft_node import RaftNode, validate_members
+from backend.state_machine import StateMachine
 from collab.raft.v1 import raft_pb2_grpc
 from collab.document.v1 import document_pb2_grpc
 from backend.writing_service import WritingService
@@ -27,18 +28,26 @@ from collab.auth.v1 import auth_pb2_grpc
 async def serve():
 
     server = grpc.aio.server()
-    auth_service = AuthService()
     node_id = os.getenv("SERVER_ID", "app-1")
     address = os.getenv("APP_BIND", "127.0.0.1:50051")
     members = json.loads(os.environ["RAFT_MEMBERS"]) if "RAFT_MEMBERS" in os.environ else {node_id: address}
+    validate_members(node_id, members)
     database = Path(os.getenv("DATABASE_PATH", "data/documents.sqlite3")).resolve()
-    with closing(DocumentStore(database)) as store, closing(RaftStore(database)) as raft_store:
-        raft_node = RaftNode(node_id, members, raft_store)
+    with closing(DocumentStore(database)) as store:
+        store.initialize_application(members)
+        await serve_application(server, node_id, address, members, database, store)
+
+
+async def serve_application(server, node_id, address, members, database, store):
+    with closing(RaftStore(database)) as raft_store:
+        machine = StateMachine(store)
+        raft_node = RaftNode(node_id, members, raft_store, state_machine=machine)
+        auth_service = AuthService(store, raft_node)
         service = SystemService(raft_node)
         ai_channel = grpc.aio.insecure_channel(os.getenv("AI_ADDRESS", "127.0.0.1:50052"))
         termination = None
         try:
-            document_service = DocumentService(auth_service, store)
+            document_service = DocumentService(auth_service, store, raft_node, machine)
             ai_pb2_grpc.add_WritingServiceServicer_to_server(
                 WritingService(auth_service, store, ai_channel), server
             )

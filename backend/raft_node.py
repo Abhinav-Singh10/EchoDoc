@@ -8,7 +8,8 @@ import time
 
 import grpc
 
-from backend.raft_commands import NoOpCommand, decode_command, encode_command
+from backend.commands import NoOpCommand
+from backend.raft_commands import decode_command, encode_command
 from collab.raft.v1 import raft_pb2, raft_pb2_grpc
 
 logger = logging.getLogger(__name__)
@@ -20,18 +21,22 @@ class NotLeaderError(Exception):
         self.leader_id = leader_id
 
 
+def validate_members(node_id, members):
+    if not isinstance(members, dict) or not members or node_id not in members:
+        raise ValueError("Raft membership must contain this node's SERVER_ID")
+    if any(not isinstance(key, str) or not key.strip() for key in members):
+        raise ValueError("Raft member IDs must be nonempty strings")
+    addresses = list(members.values())
+    if any(not isinstance(address, str) or not address.strip() for address in addresses):
+        raise ValueError("Raft member addresses must be nonempty strings")
+    if len(set(addresses)) != len(addresses):
+        raise ValueError("Raft member addresses must be distinct")
+
+
 class RaftNode(raft_pb2_grpc.RaftServiceServicer):
-    def __init__(self, node_id, members, store, *, election_timeout=(1.5, 3.0),
+    def __init__(self, node_id, members, store, *, state_machine=None, election_timeout=(1.5, 3.0),
                  heartbeat_interval=0.25, rpc_timeout=0.4, tick_interval=0.05):
-        if not isinstance(members, dict) or not members or node_id not in members:
-            raise ValueError("Raft membership must contain this node's SERVER_ID")
-        if any(not isinstance(key, str) or not key.strip() for key in members):
-            raise ValueError("Raft member IDs must be nonempty strings")
-        addresses = list(members.values())
-        if any(not isinstance(address, str) or not address.strip() for address in addresses):
-            raise ValueError("Raft member addresses must be nonempty strings")
-        if len(set(addresses)) != len(addresses):
-            raise ValueError("Raft member addresses must be distinct")
+        validate_members(node_id, members)
         if not 0 < election_timeout[0] <= election_timeout[1] or min(
             heartbeat_interval, rpc_timeout, tick_interval,
         ) <= 0:
@@ -50,10 +55,17 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         self.voted_for = state["voted_for"]
         self.role = "follower"
         self.leader_id = ""
-        self.commit_index = 0
+        self.state_machine = state_machine
+        self.last_applied = state_machine.store.get_last_applied() if state_machine else 0
+        if self.last_applied > store.last_log_position()[0]:
+            raise ValueError("Application progress is ahead of the Raft log; retain this database for inspection")
+        self.commit_index = self.last_applied
         self.next_index = {}
         self.match_index = {}
         self._pending = {}
+        self._apply_waiters = {}
+        self._apply_wake = asyncio.Event()
+        self._leader_noop = None
         self.lock = asyncio.Lock()
         self._channels = {}
         self._clients = {}
@@ -75,12 +87,13 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 self._channels[peer] = channel
                 self._clients[peer] = raft_pb2_grpc.RaftServiceStub(channel)
         self._reset_deadline()
-        self._task = asyncio.create_task(self._run(), name=f"raft-{self.node_id}")
+        self._task = asyncio.create_task(self._supervise(), name=f"raft-{self.node_id}")
         return self._task
 
     async def stop(self):
         self._stopping = True
         self._fail_pending(RuntimeError("Raft node stopped"))
+        self._fail_apply_waiters(RuntimeError("Raft node stopped"))
         if self._task is not None:
             self._task.cancel()
             await asyncio.gather(self._task, return_exceptions=True)
@@ -92,6 +105,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
     def _set_role(self, role, leader_id=""):
         self.role, self.leader_id = role, leader_id
         if role != "leader":
+            self._leader_noop = None
             self._fail_pending(NotLeaderError(leader_id))
             self.next_index.clear()
             self.match_index.clear()
@@ -120,6 +134,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
     def _fail(self, error):
         self._failure = error
         self._fail_pending(RuntimeError(f"Raft storage or background task failed: {error}"))
+        self._fail_apply_waiters(RuntimeError(f"Raft application is unavailable: {error}"))
         self._wake.set()
         self._set_role("follower")
 
@@ -128,6 +143,13 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
             if not future.done():
                 future.set_exception(error)
         self._pending.clear()
+
+    def _fail_apply_waiters(self, error):
+        for waiters in self._apply_waiters.values():
+            for future in waiters:
+                if not future.done():
+                    future.set_exception(error)
+        self._apply_waiters.clear()
 
     def _append_local(self, payload):
         try:
@@ -147,7 +169,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         self._set_role("leader", self.node_id)
         self.next_index = {peer: last_index + 1 for peer in self.members if peer != self.node_id}
         self.match_index = {peer: 0 for peer in self.members}
-        self._append_local(encode_command(NoOpCommand()))
+        self._leader_noop = self._append_local(encode_command(NoOpCommand()))
         self._advance_commit()
         self._next_heartbeat = 0
         self._wake.set()
@@ -156,6 +178,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         if index <= self.commit_index:
             return
         self.commit_index = index
+        self._apply_wake.set()
         for pending_index in list(self._pending):
             if pending_index <= index:
                 future = self._pending.pop(pending_index)
@@ -214,10 +237,88 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                     "raft_leader_id": self.leader_id,
                     "raft_last_log_index": self.store.last_log_position()[0],
                     "raft_commit_index": self.commit_index,
+                    "raft_last_applied": self.last_applied,
                 }
             except (sqlite3.Error, OverflowError) as error:
                 self._fail(error)
                 raise
+
+    async def wait_applied(self, index, timeout=5.0):
+        future = None
+        try:
+            async with self.lock:
+                if self.state_machine is None:
+                    raise RuntimeError("This Raft node has no application state machine")
+                if self._failure is not None or self._stopping:
+                    raise RuntimeError("Raft application is unavailable")
+                if self.last_applied >= index:
+                    return index
+                future = asyncio.get_running_loop().create_future()
+                self._apply_waiters.setdefault(index, set()).add(future)
+            return await asyncio.wait_for(future, timeout)
+        finally:
+            if future is not None:
+                waiters = self._apply_waiters.get(index)
+                if waiters is not None:
+                    waiters.discard(future)
+                    if not waiters:
+                        self._apply_waiters.pop(index)
+                if not future.done():
+                    future.cancel()
+                elif not future.cancelled():
+                    future.exception()
+
+    async def wait_ready(self, timeout=5.0):
+        async with self.lock:
+            if self.role != "leader" or self._leader_noop is None:
+                raise NotLeaderError(self.leader_id)
+            term, index = self.term, self._leader_noop
+        await self.wait_applied(index, timeout)
+        async with self.lock:
+            if self.role != "leader" or self.term != term:
+                raise NotLeaderError(self.leader_id)
+
+    async def _supervise(self):
+        tasks = [asyncio.create_task(self._run())]
+        if self.state_machine is not None:
+            tasks.append(asyncio.create_task(self._apply_loop()))
+        try:
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                await task
+            if not self._stopping:
+                raise RuntimeError("A Raft worker stopped unexpectedly")
+        except Exception as error:
+            self._fail(error)
+            logger.exception("Raft %s worker failed", self.node_id)
+            raise
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def _apply_loop(self):
+        while not self._stopping:
+            self._apply_wake.clear()
+            while True:
+                async with self.lock:
+                    index = self.last_applied + 1
+                    if index > self.commit_index:
+                        break
+                    entry = self.store.get_entry(index)
+                    if entry is None:
+                        raise RuntimeError(f"Committed Raft entry {index} is missing")
+                # No Raft lock while waiting for a document lock or applying state.
+                await self.state_machine.apply(entry)
+                async with self.lock:
+                    self.last_applied = index
+                    for waiting_index in list(self._apply_waiters):
+                        if waiting_index <= index:
+                            for future in self._apply_waiters.pop(waiting_index):
+                                if not future.done():
+                                    future.set_result(waiting_index)
+                await asyncio.sleep(0)
+            await self._apply_wake.wait()
 
     async def _check_available(self, context):
         if self._failure is not None or self._stopping:

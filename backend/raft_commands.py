@@ -1,16 +1,12 @@
 """Convert prepared commands to and from Raft log payloads, without applying them."""
 
-from dataclasses import dataclass
-
 from google.protobuf.message import DecodeError
 
-from backend.document_store import CreateDocumentCommand, SubmitUpdateCommand
+from backend.commands import (
+    CreateDocumentCommand, CreateSessionCommand, NoOpCommand, RevokeSessionCommand,
+    SubmitUpdateCommand,
+)
 from collab.raft.v1 import raft_pb2
-
-
-@dataclass(frozen=True)
-class NoOpCommand:
-    pass
 
 
 def encode_command(command):
@@ -25,6 +21,13 @@ def encode_command(command):
         ))
     elif isinstance(command, NoOpCommand):
         envelope = raft_pb2.Command(no_op=raft_pb2.NoOpCommand())
+    elif isinstance(command, CreateSessionCommand):
+        envelope = raft_pb2.Command(create_session=raft_pb2.CreateSessionCommand(
+            token=command.token, user_id=command.user_id, username=command.username,
+            expires_at=command.expires_at,
+        ))
+    elif isinstance(command, RevokeSessionCommand):
+        envelope = raft_pb2.Command(revoke_session=raft_pb2.RevokeSessionCommand(token=command.token))
     else:
         raise TypeError(f"Unsupported document command: {type(command).__name__}")
     return envelope.SerializeToString(deterministic=True)
@@ -46,4 +49,9 @@ def decode_command(payload):
         )
     elif kind == "no_op":
         return NoOpCommand()
+    elif kind == "create_session":
+        command = envelope.create_session
+        return CreateSessionCommand(command.token, command.user_id, command.username, command.expires_at)
+    elif kind == "revoke_session":
+        return RevokeSessionCommand(envelope.revoke_session.token)
     raise ValueError("Raft command has no supported command variant")
