@@ -5,7 +5,7 @@
         "name": "browser_listener",
         "address": {
           "socket_address": {
-            "address": "127.0.0.1",
+            "address": "0.0.0.0",
             "port_value": 8080
           }
         },
@@ -24,19 +24,9 @@
                     "virtual_hosts": [
                       {
                         "name": "python_service",
-                        "domains": ["*"],
-                        "typed_per_filter_config": {
-                          "envoy.filters.http.cors": {
-                            "@type": "type.googleapis.com/envoy.extensions.filters.http.cors.v3.CorsPolicy",
-                            "allow_origin_string_match": [
-                              { "exact": "http://127.0.0.1:5173" }
-                            ],
-                            "allow_methods": "POST, OPTIONS",
-                            "allow_headers": "content-type,x-grpc-web,x-user-agent,grpc-timeout, authorization",
-                            "expose_headers": "grpc-status,grpc-message,grpc-status-details-bin",
-                            "max_age": "600"
-                          }
-                        },
+                        "domains": [
+                          "*"
+                        ],
                         "routes": [
                           {
                             "match": {
@@ -49,48 +39,12 @@
                           },
                           {
                             "match": {
-                              "prefix": "/collab.system.v1.SystemService/"
-                            },
-                            "route": {
-                              "cluster": "python_backend",
-                              "timeout": "0s"
-                            }
-                          },
-                          {
-                            "match": {
-                              "path": "/collab.auth.v1.AuthService/WatchSession"
-                            },
-                            "route": {
-                              "cluster": "python_backend",
-                              "timeout": "0s"
-                            }
-                          },
-                          {
-                            "match": {
-                              "prefix": "/collab.auth.v1.AuthService/"
-                            },
-                            "route": {
-                              "cluster": "python_backend",
-                              "timeout": "5s"
-                            }
-                          },
-                          {
-                            "match": {
-                              "path": "/collab.document.v1.DocumentService/WatchDocument"
+                              "prefix": "/"
                             },
                             "route": {
                               "cluster": "python_backend",
                               "timeout": "0s",
                               "idle_timeout": "0s"
-                            }
-                          },
-                          {
-                            "match": {
-                              "prefix": "/collab.document.v1.DocumentService/"
-                            },
-                            "route": {
-                              "cluster": "python_backend",
-                              "timeout": "5s"
                             }
                           }
                         ]
@@ -102,12 +56,6 @@
                       "name": "envoy.filters.http.grpc_web",
                       "typed_config": {
                         "@type": "type.googleapis.com/envoy.extensions.filters.http.grpc_web.v3.GrpcWeb"
-                      }
-                    },
-                    {
-                      "name": "envoy.filters.http.cors",
-                      "typed_config": {
-                        "@type": "type.googleapis.com/envoy.extensions.filters.http.cors.v3.Cors"
                       }
                     },
                     {
@@ -127,10 +75,14 @@
     "clusters": [
       {
         "name": "python_backend",
-        "type": "STATIC",
+        "type": "STRICT_DNS",
         "connect_timeout": "0.5s",
         "lb_policy": "ROUND_ROBIN",
-        "common_lb_config": { "healthy_panic_threshold": { "value": 0 } },
+        "common_lb_config": {
+          "healthy_panic_threshold": {
+            "value": 0
+          }
+        },
         "health_checks": [
           {
             "timeout": "0.5s",
@@ -158,7 +110,27 @@
                   "endpoint": {
                     "address": {
                       "socket_address": {
-                        "address": "127.0.0.1",
+                        "address": "app-1",
+                        "port_value": 50051
+                      }
+                    }
+                  }
+                },
+                {
+                  "endpoint": {
+                    "address": {
+                      "socket_address": {
+                        "address": "app-2",
+                        "port_value": 50051
+                      }
+                    }
+                  }
+                },
+                {
+                  "endpoint": {
+                    "address": {
+                      "socket_address": {
+                        "address": "app-3",
                         "port_value": 50051
                       }
                     }

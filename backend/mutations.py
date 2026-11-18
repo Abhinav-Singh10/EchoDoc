@@ -31,25 +31,31 @@ async def route_write(raft, request, context, stub_type, method):
     budget = context.time_remaining()
     deadline = time.monotonic() + (min(5.0, budget) if budget is not None else 5.0)
     try:
-        if raft.role != "leader":
-            metadata = dict(context.invocation_metadata())
-            leader = raft.leader_id
-            if HOP in metadata or not leader or leader == raft.node_id:
-                raise NotLeaderError(leader)
-            async with grpc.aio.insecure_channel(raft.members[leader]) as channel:
-                headers = [(HOP, "1")]
-                if "authorization" in metadata:
-                    headers.append(("authorization", metadata["authorization"]))
-                call = getattr(stub_type(channel), method)(request, metadata=headers, timeout=remaining(deadline))
-                response = await call
-                trailers = {key: value for key, value in await call.trailing_metadata()}
-                index = int(trailers[APPLIED])
-                await raft.wait_applied(index, remaining(deadline))
-                return response, deadline
-        await raft.wait_ready(remaining(deadline))
-        return None, deadline
+        if raft.role == "leader":
+            await raft.wait_ready(remaining(deadline))
+            return None, deadline
+        response = await _forward_write(raft, request, context, stub_type, method, deadline)
+        return response, deadline
     except (NotLeaderError, TimeoutError, RuntimeError, grpc.RpcError) as error:
         await abort_mutation(context, error)
+
+
+async def _forward_write(raft, request, context, stub_type, method, deadline):
+    metadata = dict(context.invocation_metadata())
+    leader = raft.leader_id
+    if HOP in metadata or not leader or leader == raft.node_id:
+        raise NotLeaderError(leader)
+    headers = [(HOP, "1")]
+    if "authorization" in metadata:
+        headers.append(("authorization", metadata["authorization"]))
+
+    async with grpc.aio.insecure_channel(raft.members[leader]) as channel:
+        call = getattr(stub_type(channel), method)(request, metadata=headers, timeout=remaining(deadline))
+        response = await call
+        trailers = {key: value for key, value in await call.trailing_metadata()}
+        applied_index = int(trailers[APPLIED])
+        await raft.wait_applied(applied_index, remaining(deadline))
+        return response
 
 
 async def submit_write(raft, store, command, context, deadline):

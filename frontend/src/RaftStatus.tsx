@@ -3,6 +3,7 @@ import { Code, ConnectError } from '@connectrpc/connect'
 import type { ClusterInfo } from './gen/collab/system/v1/system_pb'
 import { systemClient } from './rpc'
 import { clusterSummary } from './clusterStatus'
+import { retryRead } from './recovery'
 
 export default function RaftStatus() {
   const [cluster, setCluster] = useState<ClusterInfo | null>(null)
@@ -14,9 +15,9 @@ export default function RaftStatus() {
 
     async function poll() {
       try {
-        const next = await systemClient.getClusterInfo({}, {
-          signal: controller.signal, timeoutMs: 2500,
-        })
+        const next = await retryRead(timeoutMs => systemClient.getClusterInfo({}, {
+          signal: controller.signal, timeoutMs: Math.min(2500, timeoutMs),
+        }), controller.signal)
         if (!controller.signal.aborted) {
           for (const node of next.nodes) {
             if (node.result.case === 'error') {
@@ -55,8 +56,6 @@ export default function RaftStatus() {
         {(failure || !cluster) && <p role="status">{failure ? 'Status check failed — retrying…' : 'Checking cluster…'}</p>}
         <div className="raft-nodes">
           {nodes.map(node => {
-            // On a failed aggregate poll, retain only node identities on screen.
-            // Previous roles/counters are never presented as fresh observations.
             const info = !failure && node.result.case === 'info' ? node.result.value : null
             const error = failure ?? (node.result.case === 'error' ? node.result.value : null)
             const role = info?.raftRole || 'unknown'

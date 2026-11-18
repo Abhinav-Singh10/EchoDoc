@@ -1,9 +1,9 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { LoginResponse } from "./gen/collab/auth/v1/auth_pb";
 import { authClient } from "./rpc";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
-import { backoff, pause, retryable } from "./recovery";
+import { useSessionMonitor } from "./useSessionMonitor";
 
 type LoginPanelProps = {
   children: ReactNode;
@@ -18,79 +18,12 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername, children }
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [monitorError, setMonitorError] = useState("");
-  const [monitorStopped, setMonitorStopped] = useState(false);
-  const token = session?.sessionToken;
-  const [watchAttempt, setWatchAttempt] = useState(0);
-
-  useEffect(() => {
-    if (!token) return;
-    const controller = new AbortController();
-
-    async function watchSession() {
-      let failures = 0;
-      while (!controller.signal.aborted) {
-        const current = new AbortController();
-        const cancel = () => current.abort();
-        controller.signal.addEventListener("abort", cancel, { once: true });
-        let lastEvent = performance.now();
-        const watchdog = setInterval(() => {
-          if (performance.now() - lastEvent >= 6000) {
-            current.abort(new ConnectError("Session stream stopped responding", Code.Unavailable));
-          }
-        }, 250);
-        try {
-          const stream = authClient.watchSession({}, {
-            headers: { authorization: `Bearer ${token}` },
-            signal: current.signal,
-          });
-          for await (const user of stream) {
-            if (controller.signal.aborted || !user) return;
-            lastEvent = performance.now();
-            failures = 0;
-            setMonitorError("");
-          }
-          if (controller.signal.aborted) return;
-          throw new ConnectError("Session stream ended", Code.Unavailable);
-        } catch (err) {
-          if (controller.signal.aborted) return;
-          const error = current.signal.aborted ? current.signal.reason : err;
-          if (error instanceof ConnectError && error.code === Code.Unauthenticated) {
-            setSession(null);
-            setMonitorError("Your session expired or is no longer valid. Log in again.");
-            return;
-          } else if (!retryable(error)) {
-            setMonitorStopped(true);
-            setMonitorError("Session monitoring stopped. Retry the connection.");
-            return;
-          } else {
-            setMonitorError("Session connection lost. Reconnecting automatically…");
-          }
-        } finally {
-          clearInterval(watchdog);
-          controller.signal.removeEventListener("abort", cancel);
-          current.abort();
-        }
-        try { await pause(backoff(failures++), controller.signal); }
-        catch { return; }
-      }
-    }
-
-    function leavePage() {
-      controller.abort();
-      setSession(null);
-    }
-    void watchSession();
-    window.addEventListener("pagehide", leavePage);
-    return () => {
-      controller.abort();
-      window.removeEventListener("pagehide", leavePage);
-    };
-  }, [token, setSession, watchAttempt]);
+  const {
+    connectionError, stopped: monitorStopped, clearError: clearMonitorError, retryConnection,
+  } = useSessionMonitor(session?.sessionToken, setSession);
 
   async function login() {
-    setMonitorError("");
-    setMonitorStopped(false);
+    clearMonitorError();
     setBusy(true);
     setError("");
     try {
@@ -116,8 +49,7 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername, children }
       await authClient.logout({}, {
         headers: { authorization: `Bearer ${session.sessionToken}` }, timeoutMs: 5000,
       });
-      setMonitorError("");
-      setMonitorStopped(false);
+      clearMonitorError();
       setSession(null);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
@@ -172,16 +104,12 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername, children }
             <button type="submit">{busy ? "Logging in…" : "Log in"}</button>
           </fieldset>
         </form>
-        {(error || monitorError) && <p role="alert">{error || monitorError}</p>}
+        {(error || connectionError) && <p role="alert">{error || connectionError}</p>}
       </section>}
 
-      {session && (error || monitorError) && <div className="session-alert" role="alert">
-        <p>{error || monitorError}</p>
-        {monitorStopped && <button type="button" onClick={() => {
-          setMonitorStopped(false);
-          setMonitorError("");
-          setWatchAttempt(attempt => attempt + 1);
-        }}>Retry connection</button>}
+      {session && (error || connectionError) && <div className="session-alert" role="alert">
+        <p>{error || connectionError}</p>
+        {monitorStopped && <button type="button" onClick={retryConnection}>Retry connection</button>}
       </div>}
     </>
   );

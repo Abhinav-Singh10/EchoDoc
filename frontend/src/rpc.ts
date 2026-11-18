@@ -8,7 +8,6 @@ import { SystemService } from "./gen/collab/system/v1/system_pb";
 const baseUrl =
   import.meta.env.VITE_RPC_BASE_URL || `${window.location.origin}/rpc`;
 
-// systemClient knows which RPCs exits and their req/res type
 const transport = createGrpcWebTransport({
   baseUrl,
 });

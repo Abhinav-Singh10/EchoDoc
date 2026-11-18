@@ -1,10 +1,10 @@
-import { useCallback,  useState } from 'react'
+import { useCallback, useState } from 'react'
 import DocumentList from './DocumentList'
-import './App.css'
-import './demo.css'
 import LoginPanel from './LoginPanel'
 import RaftStatus from './RaftStatus'
 import type { LoginResponse } from './gen/collab/auth/v1/auth_pb'
+import './App.css'
+import './demo.css'
 
 function App() {
   const [pendingCount, setPendingCount] = useState(0)
@@ -16,17 +16,29 @@ function App() {
     if (next) setLastSession(next)
   }, [])
 
+  const canLogout = pendingCount === 0
+  const lockedUsername = pendingCount ? lastSession?.user?.username : undefined
+  const documentToken = session?.sessionToken ?? ''
 
   return (
     <main>
-      <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
-        lockedUsername={pendingCount ? lastSession?.user?.username : undefined}>
+      <LoginPanel
+        session={session}
+        setSession={changeSession}
+        canLogout={canLogout}
+        lockedUsername={lockedUsername}
+      >
         <RaftStatus />
       </LoginPanel>
-        
-        {lastSession && (
-         <DocumentList key={lastSession.user?.userId} token={session?.sessionToken ?? ""} pendingCount={pendingCount} onPendingChange={setPendingCount} />
-        )}
+
+      {lastSession && (
+        <DocumentList
+          key={lastSession.user?.userId}
+          token={documentToken}
+          pendingCount={pendingCount}
+          onPendingChange={setPendingCount}
+        />
+      )}
     </main>
   )
 }

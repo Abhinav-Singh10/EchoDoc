@@ -1,15 +1,13 @@
-import argparse
 import asyncio
 
 import grpc
 from google.protobuf.empty_pb2 import Empty
 
 from collab.system.v1 import system_pb2_grpc
-from scripts.run_local import load_config
 
 
 async def inspect_node(node):
-    address = f"127.0.0.1:{node['app_port']}"
+    address = node["address"]
     async with grpc.aio.insecure_channel(address) as channel:
         try:
             info = await system_pb2_grpc.SystemServiceStub(channel).GetServerInfo(Empty(), timeout=1)
@@ -29,10 +27,9 @@ async def show_status(config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Show each configured node's own view of the election, over native gRPC.")
-    parser.add_argument("--config", default="deploy/local.json")
-    args = parser.parse_args()
-    asyncio.run(show_status(load_config(args.config)))
+    asyncio.run(show_status({"nodes": [
+        {"id": name, "address": f"{name}:50051"} for name in ("app-1", "app-2", "app-3")
+    ]}))
 
 
 if __name__ == "__main__":

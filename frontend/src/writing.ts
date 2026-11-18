@@ -1,6 +1,5 @@
 import type { Action } from "./gen/collab/ai/v1/ai_pb";
 
-// A preview belongs to one exact document/selection/session state.
 export type WritingTarget = {
   action: Action;
   text: string;

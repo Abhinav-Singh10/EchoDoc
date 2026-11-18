@@ -91,7 +91,6 @@ class RaftStore:
             self._insert_entries(entries)
 
     def replace_suffix(self, start_index, entries):
-        """The future Raft caller must ensure this suffix is not committed."""
         self._check_index(start_index)
         entries = list(entries)
         with self._db:

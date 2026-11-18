@@ -1,0 +1,86 @@
+name: echodoc-class
+
+x-backend: &backend
+  image: echodoc-class-backend
+  build:
+    context: .
+    target: backend
+  stop_signal: SIGINT
+  environment: &backend-environment
+    APP_BIND: 0.0.0.0:50051
+    DATABASE_PATH: /data/documents.sqlite3
+    USERS_PATH: /accounts/users.json
+    AI_ADDRESS: ai:50052
+    RAFT_MEMBERS: '{"app-1":"app-1:50051","app-2":"app-2:50051","app-3":"app-3:50051"}'
+
+services:
+  app-1:
+    <<: *backend
+    environment:
+      <<: *backend-environment
+      SERVER_ID: app-1
+    volumes:
+      - app-1-data:/data
+      - accounts:/accounts
+
+  app-2:
+    <<: *backend
+    environment:
+      <<: *backend-environment
+      SERVER_ID: app-2
+    volumes:
+      - app-2-data:/data
+      - accounts:/accounts
+
+  app-3:
+    <<: *backend
+    environment:
+      <<: *backend-environment
+      SERVER_ID: app-3
+    volumes:
+      - app-3-data:/data
+      - accounts:/accounts
+
+  ai:
+    image: echodoc-class-ai
+    stop_signal: SIGINT
+    build:
+      context: .
+      target: ai
+    environment:
+      AI_BIND: 0.0.0.0:50052
+      HF_HOME: /models
+    volumes:
+      - model-cache:/models
+
+  envoy:
+    image: envoyproxy/envoy:v1.38.3
+    command: ["envoy", "-c", "/etc/envoy/envoy.json", "--log-level", "warning"]
+    volumes:
+      - ./deploy/envoy.json:/etc/envoy/envoy.json:ro
+    depends_on:
+      - app-1
+      - app-2
+      - app-3
+
+  frontend:
+    image: echodoc-class-frontend
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      FRONTEND_HOST: 0.0.0.0
+      FRONTEND_PORT: "5373"
+      ENVOY_ADDRESS: http://envoy:8080
+      VITE_RPC_BASE_URL: ""
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5373}:5373"
+    depends_on:
+      - envoy
+
+volumes:
+  app-1-data:
+  app-2-data:
+  app-3-data:
+  accounts:
+  model-cache:

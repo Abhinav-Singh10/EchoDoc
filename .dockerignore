@@ -1,0 +1,15 @@
+.git
+.venv
+**/node_modules
+**/__pycache__
+**/*.pyc
+**/dist
+backend/generated
+frontend/src/gen
+backend/users.json
+data
+scratch
+**/.env*
+**/*.sqlite3*
+**/*.gguf
+**/*.log

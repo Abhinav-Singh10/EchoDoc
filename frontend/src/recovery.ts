@@ -1,11 +1,14 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 
+export const STREAM_IDLE_TIMEOUT_MS = 6000;
+export const STREAM_CHECK_INTERVAL_MS = 250;
+
 export function retryable(error: unknown): boolean {
   if (error instanceof ConnectError) {
     return error.code === Code.Unavailable || error.code === Code.DeadlineExceeded ||
       (error.code === Code.Unknown && (error.cause instanceof TypeError || error.rawMessage === "missing trailer"));
   }
-  return error instanceof TypeError; // fetch network failure
+  return error instanceof TypeError;
 }
 
 export function backoff(attempt: number): number {
@@ -27,7 +30,6 @@ export function pause(ms: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-// Only read-only unary calls use this helper. Mutation retries need request IDs.
 export async function retryRead<T>(
   call: (timeoutMs: number) => Promise<T>, signal?: AbortSignal,
 ): Promise<T> {

@@ -25,6 +25,7 @@ class StoreError(Exception):
 
 
 class DocumentStore:
+
     def __init__(self, database=None):
         database = Path(database or os.getenv("DATABASE_PATH", "data/documents.sqlite3"))
         database.parent.mkdir(parents=True, exist_ok=True)
@@ -60,7 +61,6 @@ class DocumentStore:
             """)
 
     def initialize_history(self):
-        """Backfill missing histories before serving, using only applied creations."""
         try:
             with self._db:
                 self._db.execute("BEGIN")
@@ -74,40 +74,46 @@ class DocumentStore:
                 members = json.loads(self._db.execute(
                     "SELECT member_ids FROM application_state WHERE id = 1",
                 ).fetchone()[0])
-                missing = {row["id"] for row in documents}
-                creations = {}
-                for row in self._db.execute("""
-                    SELECT l.command FROM raft_log l
-                    JOIN applied_results a ON a.log_index = l.log_index
-                    WHERE l.log_index <= ? AND a.changed = 1 AND a.error_code IS NULL
-                    ORDER BY l.log_index
-                """, (self.get_last_applied(),)):
-                    command = decode_command(row[0])
-                    if isinstance(command, CreateDocumentCommand) and command.document_id in missing:
-                        creations.setdefault(command.document_id, command)
+                creations = self._find_applied_creations({row["id"] for row in documents})
                 for row in documents:
-                    doc_id = row["id"]
-                    creation = creations.get(doc_id)
-                    if creation is None:
-                        if len(members) != 1:
-                            raise ValueError(f"No successful applied creation for cluster document {doc_id}")
-                        self._record_version(doc_id, row["revision"], row["state"], "")
-                        continue
-                    state, revision = creation.state, 0
-                    self._record_version(doc_id, 0, state, "")
-                    for saved in self._db.execute("""
-                        SELECT revision, author, update_bytes FROM updates
-                        WHERE document_id = ? ORDER BY revision
-                    """, (doc_id,)):
-                        if saved["revision"] != revision + 1 or saved["revision"] > row["revision"]:
-                            raise ValueError(f"Nonconsecutive saved updates for document {doc_id}")
-                        state = self._merge_update(state, saved["update_bytes"])
-                        revision = saved["revision"]
-                        self._record_version(doc_id, revision, state, saved["author"])
-                    if revision != row["revision"] or state != row["state"]:
-                        raise ValueError(f"Reconstructed history differs from saved document {doc_id}")
+                    self._backfill_document_history(row, creations.get(row["id"]), len(members) == 1)
         except (sqlite3.Error, ValueError, StoreError) as error:
             raise StoreError("INTERNAL", f"Could not initialize document history: {error}") from error
+
+    def _find_applied_creations(self, document_ids):
+        creations = {}
+        for row in self._db.execute("""
+            SELECT l.command FROM raft_log l
+            JOIN applied_results a ON a.log_index = l.log_index
+            WHERE l.log_index <= ? AND a.changed = 1 AND a.error_code IS NULL
+            ORDER BY l.log_index
+        """, (self.get_last_applied(),)):
+            command = decode_command(row[0])
+            if isinstance(command, CreateDocumentCommand) and command.document_id in document_ids:
+                creations.setdefault(command.document_id, command)
+        return creations
+
+    def _backfill_document_history(self, document, creation, single_node):
+        document_id = document["id"]
+        if creation is None:
+            if not single_node:
+                raise ValueError(f"No successful applied creation for cluster document {document_id}")
+            self._record_version(document_id, document["revision"], document["state"], "")
+            return
+
+        state, revision = creation.state, 0
+        self._record_version(document_id, 0, state, "")
+        for saved in self._db.execute("""
+            SELECT revision, author, update_bytes FROM updates
+            WHERE document_id = ? ORDER BY revision
+        """, (document_id,)):
+            if saved["revision"] != revision + 1 or saved["revision"] > document["revision"]:
+                raise ValueError(f"Nonconsecutive saved updates for document {document_id}")
+            state = self._merge_update(state, saved["update_bytes"])
+            revision = saved["revision"]
+            self._record_version(document_id, revision, state, saved["author"])
+        if revision != document["revision"] or state != document["state"]:
+            raise ValueError(f"Reconstructed history differs from saved document {document_id}")
 
     def _record_version(self, document_id, revision, state, author_id):
         self._db.execute(
@@ -138,7 +144,6 @@ class DocumentStore:
             raise StoreError("INTERNAL", "Could not save the document") from error
 
     def initialize_application(self, member_ids):
-        """Adopt compatible legacy data once; refuse incompatible data before DDL."""
         members = json.dumps(sorted(member_ids))
         tables = {row[0] for row in self._db.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
         if "application_state" in tables:

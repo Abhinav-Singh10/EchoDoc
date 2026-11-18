@@ -32,7 +32,7 @@ class AIService(ai_pb2_grpc.AIServiceServicer):
         except ValueError as error:
             await context.abort(grpc.StatusCode.INVALID_ARGUMENT, str(error))
         except asyncio.CancelledError:
-            future.cancel()  # Cancels queued work; running inference retains its slot.
+            future.cancel()
             raise
         except Exception:
             await context.abort(

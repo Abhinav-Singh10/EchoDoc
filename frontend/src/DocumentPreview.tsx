@@ -6,7 +6,7 @@ import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
 import { Code, ConnectError } from "@connectrpc/connect";
-import { backoff, pause, retryable } from "./recovery";
+import { backoff, pause, retryable, STREAM_IDLE_TIMEOUT_MS, STREAM_CHECK_INTERVAL_MS } from "./recovery";
 import { Action } from "./gen/collab/ai/v1/ai_pb";
 import WritingPanel from "./WritingPanel";
 import type { WritingEditor } from "./writing";
@@ -25,7 +25,7 @@ export default function DocumentPreview({
   token,
   onPendingChange,
 }: Props) {
-  const [local] = useState(() => ({
+  const [localDocument] = useState(() => ({
     doc: new Y.Doc(),
     version:0,
     pending: [] as { requestId: string; update: Uint8Array }[],
@@ -33,7 +33,7 @@ export default function DocumentPreview({
   const [lastTyped, setLastTyped] = useState(0);
   const [editVersion, setEditVersion] = useState(0);
   const writingRef = useRef<WritingEditor | null>(null);
-  const element = useRef<HTMLDivElement>(null);
+  const editorElement = useRef<HTMLDivElement>(null);
   const [revision, setRevision] = useState<bigint | null>(null);
   const [error, setError] = useState("");
   const [pendingCount, setPendingCount] = useState(0);
@@ -48,35 +48,35 @@ export default function DocumentPreview({
 
   useEffect(() => {
     const controller = new AbortController();
-    const doc = local.doc;
+    const doc = localDocument.doc;
     const text = doc.getText("content");
 
     const remoteOrigin = Symbol("server");
     const editing = new Compartment();
 
-    const pending = local.pending;
+    const pendingUpdates = localDocument.pending;
 
-    let sending: Promise<void> | null = null;
-    let stopped = true;
+    let saveInFlight: Promise<void> | null = null;
+    let editingPaused = true;
     let streamConnected = false;
     let latestRevision = 0n;
-    let version = local.version;
-    let watching = false;
-    let attempt: AbortController | null = null;
-    let saveError: unknown;
-    let manualRestart = false;
+    let version = localDocument.version;
+    let watchLoopRunning = false;
+    let connectionAttempt: AbortController | null = null;
+    let lastSaveError: unknown;
+    let restartRequested = false;
     let connectionId = "";
     let streamServerId = "";
-    let lastEdit = 0;
-    let lastPresence: boolean | null = null;
-    let presenceSending = false;
+    let lastEditAt = 0;
+    let lastReportedEditing: boolean | null = null;
+    let presenceRequestInFlight = false;
 
     async function sendPresence() {
-      const active = Date.now() - lastEdit < 3000;
-      if (!streamConnected || presenceSending || lastPresence === active)
+      const active = Date.now() - lastEditAt < 3000;
+      if (!streamConnected || presenceRequestInFlight || lastReportedEditing === active)
         return;
-      const current = attempt;
-      presenceSending = true;
+      const current = connectionAttempt;
+      presenceRequestInFlight = true;
       try {
         await documentClient.updatePresence(
           { documentId, connectionId, streamServerId, editing: active },
@@ -86,15 +86,15 @@ export default function DocumentPreview({
             signal: current?.signal,
           },
         );
-        if (!controller.signal.aborted && current === attempt && !current?.signal.aborted) {
-          lastPresence = active;
+        if (!controller.signal.aborted && current === connectionAttempt && !current?.signal.aborted) {
+          lastReportedEditing = active;
           setPresenceError("");
         }
       } catch {
-        if (!controller.signal.aborted && current === attempt && !current?.signal.aborted)
+        if (!controller.signal.aborted && current === connectionAttempt && !current?.signal.aborted)
           setPresenceError("Could not update editing status.");
       } finally {
-        presenceSending = false;
+        presenceRequestInFlight = false;
       }
     }
     const presenceTimer = setInterval(() => void sendPresence(), 1000);
@@ -108,13 +108,13 @@ export default function DocumentPreview({
     }
 
     const editor = new EditorView({
-      parent: element.current!,
+      parent: editorElement.current!,
       state: EditorState.create({
         doc: text.toString(),
         extensions: [
           EditorView.updateListener.of((update) => {
             if (update.docChanged || update.selectionSet) {
-              local.version = ++version;
+              localDocument.version = ++version;
               setEditVersion(version);
             }
           }),
@@ -135,7 +135,7 @@ export default function DocumentPreview({
 
     writingRef.current = {
       capture(action) {
-        if (!streamConnected || stopped || pending.length)
+        if (!streamConnected || editingPaused || pendingUpdates.length)
           throw new Error("Wait for Saved first.");
         const { from, to } = editor.state.selection.main;
         const full = editor.state.doc.toString();
@@ -164,7 +164,7 @@ export default function DocumentPreview({
       },
       apply(target, answer) {
         const current = editor.state.selection.main;
-        if (!streamConnected || stopped || pending.length || target.token !== token ||
+        if (!streamConnected || editingPaused || pendingUpdates.length || target.token !== token ||
             target.revision !== latestRevision || target.version !== version ||
             target.from !== current.from || target.to !== current.to) {
           throw new Error("Document or selection changed. Request a fresh result.");
@@ -180,7 +180,7 @@ export default function DocumentPreview({
     };
 
     function stopEditing(message: string) {
-      stopped = true;
+      editingPaused = true;
       setError(message);
 
       editor.dispatch({
@@ -189,12 +189,12 @@ export default function DocumentPreview({
     }
 
     function flushUpdates(): Promise<void> {
-      if (sending) return sending;
-      const current = attempt;
+      if (saveInFlight) return saveInFlight;
+      const current = connectionAttempt;
       if (!streamConnected || !current || current.signal.aborted) return Promise.resolve();
-      sending = (async () => {
-        while (pending.length > 0 && !current.signal.aborted) {
-          const next = pending[0];
+      saveInFlight = (async () => {
+        while (pendingUpdates.length > 0 && !current.signal.aborted) {
+          const next = pendingUpdates[0];
 
           const response = await documentClient.submitUpdate(
             {
@@ -211,7 +211,7 @@ export default function DocumentPreview({
             },
           );
 
-          if (controller.signal.aborted || current.signal.aborted || current !== attempt) return;
+          if (controller.signal.aborted || current.signal.aborted || current !== connectionAttempt) return;
 
           latestRevision =
             response.revision > latestRevision
@@ -219,33 +219,33 @@ export default function DocumentPreview({
               : latestRevision;
           setRevision(latestRevision);
 
-          pending.shift();
-          setPendingCount(pending.length);
-          onPendingChange(pending.length);
+          pendingUpdates.shift();
+          setPendingCount(pendingUpdates.length);
+          onPendingChange(pendingUpdates.length);
         }
       })().finally(() => {
-        sending = null;
+        saveInFlight = null;
       });
-      return sending;
+      return saveInFlight;
     }
 
     function onLocalUpdate(update: Uint8Array, origin: unknown) {
       if (origin === remoteOrigin || controller.signal.aborted) return;
 
-      lastEdit = Date.now();
-      setLastTyped(lastEdit);
+      lastEditAt = Date.now();
+      setLastTyped(lastEditAt);
       void sendPresence();
-      pending.push({
+      pendingUpdates.push({
         requestId: crypto.randomUUID(),
         update,
       });
 
-      setPendingCount(pending.length);
-      onPendingChange(pending.length);
-      const current = attempt;
+      setPendingCount(pendingUpdates.length);
+      onPendingChange(pendingUpdates.length);
+      const current = connectionAttempt;
       void flushUpdates().catch((error: unknown) => {
-        if (controller.signal.aborted || current !== attempt || current?.signal.aborted) return;
-        saveError = error;
+        if (controller.signal.aborted || current !== connectionAttempt || current?.signal.aborted) return;
+        lastSaveError = error;
         stopEditing("Saving was not confirmed. Recovering the connection…");
         current?.abort();
       });
@@ -253,11 +253,10 @@ export default function DocumentPreview({
 
     doc.on("update", onLocalUpdate);
 
-    async function watch() {
-      if (watching || controller.signal.aborted) return;
-      watching = true;
+    async function watchDocument() {
+      if (watchLoopRunning || controller.signal.aborted) return;
+      watchLoopRunning = true;
       let failures = 0;
-      // Defer initial React state updates until after effect setup.
       await Promise.resolve();
       if (!token) {
         if (!controller.signal.aborted) {
@@ -266,19 +265,19 @@ export default function DocumentPreview({
           setConnected(false);
           setStreamServer("");
         }
-        watching = false;
+        watchLoopRunning = false;
         return;
       }
       try {
         while (!controller.signal.aborted) {
-          attempt = new AbortController();
-          const current = attempt;
-          saveError = undefined;
-          manualRestart = false;
+          connectionAttempt = new AbortController();
+          const current = connectionAttempt;
+          lastSaveError = undefined;
+          restartRequested = false;
           streamConnected = false;
           connectionId = crypto.randomUUID();
           streamServerId = "";
-          lastPresence = null;
+          lastReportedEditing = null;
           setStreamServer("");
           setConnected(false);
           setUsers([]);
@@ -287,12 +286,12 @@ export default function DocumentPreview({
           let failure: unknown;
           let lastEvent = performance.now();
           const watchdog = setInterval(() => {
-            if (performance.now() - lastEvent >= 6000 && !current.signal.aborted) {
-              saveError = new ConnectError("Document stream stopped responding", Code.Unavailable);
+            if (performance.now() - lastEvent >= STREAM_IDLE_TIMEOUT_MS && !current.signal.aborted) {
+              lastSaveError = new ConnectError("Document stream stopped responding", Code.Unavailable);
               stopEditing("Document stream stopped responding. Reconnecting…");
               current.abort();
             }
-          }, 250);
+          }, STREAM_CHECK_INTERVAL_MS);
           try {
             const stream = documentClient.watchDocument(
               { documentId, connectionId },
@@ -314,10 +313,10 @@ export default function DocumentPreview({
                 setStreamServer(streamServerId);
                 streamConnected = true;
                 setConnected(true);
-                setRetrying(pending.length > 0);
+                setRetrying(pendingUpdates.length > 0);
                 await flushUpdates();
                 if (controller.signal.aborted || current.signal.aborted) break;
-                stopped = false;
+                editingPaused = false;
                 setError("");
                 setConnecting(false);
                 setRetrying(false);
@@ -338,16 +337,15 @@ export default function DocumentPreview({
               setConnecting(true);
               stopEditing("Connection lost. Recovering; pending edits are kept in this tab…");
             }
-            // Drain the previous save before another attempt can send one.
-            try { await sending; } catch { /* Retain the pending update for recovery. */ }
+            try { await saveInFlight; } catch {   }
           }
           if (controller.signal.aborted) return;
           setConnected(false);
           setUsers([]);
           setStreamServer("");
           setRetrying(false);
-          failure = saveError ?? failure;
-          if (!manualRestart && !retryable(failure)) {
+          failure = lastSaveError ?? failure;
+          if (!restartRequested && !retryable(failure)) {
             const unauthenticated = failure instanceof ConnectError && failure.code === Code.Unauthenticated;
             stopEditing(unauthenticated
               ? "Session invalid. Log in again as the same user; pending edits are kept in this tab."
@@ -355,34 +353,33 @@ export default function DocumentPreview({
             return;
           }
           stopEditing("Connection lost. Reconnecting automatically; pending edits are kept in this tab…");
-          if (!manualRestart) await pause(backoff(failures++), controller.signal);
+          if (!restartRequested) await pause(backoff(failures++), controller.signal);
         }
       } catch {
-        // The only outer rejection is cancellation of the backoff on cleanup.
       } finally {
-        watching = false;
+        watchLoopRunning = false;
         if (!controller.signal.aborted) setConnecting(false);
       }
     }
 
-    function restart() {
+    function restartConnection() {
       if (controller.signal.aborted) return;
-      if (watching) {
-        manualRestart = true;
-        attempt?.abort();
-      } else void watch();
+      if (watchLoopRunning) {
+        restartRequested = true;
+        connectionAttempt?.abort();
+      } else void watchDocument();
     }
-    retrySave.current = async () => restart();
-    reconnect.current = restart;
+    retrySave.current = async () => restartConnection();
+    reconnect.current = restartConnection;
 
     function warnBeforeLeaving(event: BeforeUnloadEvent) {
-      if (pending.length) {
+      if (pendingUpdates.length) {
         event.preventDefault();
         event.returnValue = "";
       }
     }
     window.addEventListener("beforeunload", warnBeforeLeaving);
-    void watch();
+    void watchDocument();
 
     return () => {
       window.removeEventListener("beforeunload", warnBeforeLeaving);
@@ -390,12 +387,12 @@ export default function DocumentPreview({
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
-      attempt?.abort();
+      connectionAttempt?.abort();
       clearInterval(presenceTimer);
       doc.off("update", onLocalUpdate);
       editor.destroy();
     };
-  }, [documentId, token, onPendingChange, local]);
+  }, [documentId, token, onPendingChange, localDocument]);
 
   return (
     <article aria-label="Shared document editor" className="editor-panel">
@@ -451,7 +448,7 @@ export default function DocumentPreview({
         </div>
       )}
 
-      <div className="editor-columns"><div ref={element} />
+      <div className="editor-columns"><div ref={editorElement} />
       <WritingPanel
         editorRef={writingRef}
         documentId={documentId}

@@ -3,12 +3,10 @@ syntax = "proto3";
 package collab.system.v1;
 
 import "google/protobuf/empty.proto";
-import "google/protobuf/timestamp.proto";
 
 service SystemService {
   rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfo);
   rpc GetClusterInfo(google.protobuf.Empty) returns (ClusterInfo);
-  rpc WatchEvents(google.protobuf.Empty) returns (stream ServerEvent);
 }
 
 message ClusterInfo {
@@ -40,10 +38,4 @@ message ServerInfo {
   uint64 raft_last_log_index = 8;
   uint64 raft_commit_index = 9;
   uint64 raft_last_applied = 10;
-}
-
-message ServerEvent {
-  string process_instance_id = 1;
-  uint64 sequence = 2;
-  google.protobuf.Timestamp server_timestamp = 3;
 }

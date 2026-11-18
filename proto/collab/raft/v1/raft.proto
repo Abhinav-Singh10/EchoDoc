@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package collab.raft.v1;
 
-// Fixed-membership Raft, with deterministic document and session application.
+
 service RaftService {
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
@@ -50,7 +50,7 @@ message LogEntry {
   bytes command = 3;
 }
 
-// Prepared values; replicas never generate new IDs, tokens, or expiry times.
+
 message Command {
   oneof command {
     CreateDocumentCommand create_document = 1;
