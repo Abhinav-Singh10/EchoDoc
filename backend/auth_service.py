@@ -63,7 +63,6 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
         if session is None:
             await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Invalid session")
         if time.time() >= session["expires_at"]:
-            # Expiration is a read-time check, never a local SQL deletion.
             await context.abort(grpc.StatusCode.UNAUTHENTICATED, "Session expired")
         return token, {
             "user": auth_pb2.User(user_id=session["user_id"], username=session["username"]),

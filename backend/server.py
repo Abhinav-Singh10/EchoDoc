@@ -77,7 +77,7 @@ async def serve_application(server, node_id, address, members, database, store):
             termination = asyncio.create_task(server.wait_for_termination())
             done, _ = await asyncio.wait((termination, raft_task), return_when=asyncio.FIRST_COMPLETED)
             if raft_task in done:
-                await raft_task  # Propagate failures instead of leaving the app running.
+                await raft_task 
                 raise RuntimeError("Raft task stopped unexpectedly")
             await termination
         finally:

@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def load_config(path):
     config = json.loads((ROOT / path).read_text())
-    # Expand the single-node configuration into the same list used by the cluster.
     if "nodes" not in config:
         config["nodes"] = [{
             "id": "app-1", "app_port": config["app_port"],
@@ -126,8 +125,6 @@ def gateway_config(config):
 
 
 def stop_processes(children):
-    # Each child has its own process group, including npm's Vite subprocess.
-    # Signal the group even if its original parent has already exited.
     for _, child in reversed(children):
         try:
             os.killpg(child.pid, signal.SIGTERM)

@@ -1,7 +1,6 @@
 import argparse
 import json
 
-# accepts a password without displaying it
 from getpass import getpass
 from pathlib import Path
 

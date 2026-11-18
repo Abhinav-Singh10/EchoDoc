@@ -81,9 +81,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
             raise RuntimeError("Raft node has already been started")
         for peer, address in self.members.items():
             if peer != self.node_id:
-                # gRPC's long default reconnect backoff can outlive election
-                # timeouts after an outage. Keep peer reconnection on our RPC
-                # timescale so a returning follower receives heartbeats promptly.
                 reconnect_ms = max(1, int(self.rpc_timeout * 1000))
                 channel = grpc.aio.insecure_channel(address, options=(
                     ("grpc.initial_reconnect_backoff_ms", reconnect_ms),
@@ -122,12 +119,9 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
             self._last_status = status
 
     def _save_state(self, term, voted_for):
-        # Update memory only after SQLite has committed the term and vote.
         try:
             self.store.save_state(term, voted_for)
         except (sqlite3.Error, OverflowError) as error:
-            # A concurrent peer reply may fail after another reply wins a vote.
-            # Mark failure here even if the caller cancels that completed round.
             self._fail(error)
             raise
         self.term, self.voted_for = term, voted_for
@@ -170,7 +164,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
     def _become_leader(self):
         if self.role == "leader":
             return
-        # Initialize from the old tail so the first round includes the new no-op.
         last_index = self.store.last_log_position()[0]
         self._set_role("leader", self.node_id)
         self.next_index = {peer: last_index + 1 for peer in self.members if peer != self.node_id}
@@ -233,7 +226,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 if not future.done():
                     future.cancel()
                 elif not future.cancelled():
-                    future.exception()  # Retrieve failures even if persistence raised before waiting.
+                    future.exception()
 
     async def get_status(self):
         async with self.lock:
@@ -285,7 +278,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 raise NotLeaderError(self.leader_id)
 
     async def read_barrier(self, timeout=2.0):
-        # A fresh committed entry, rather than a cached role, confirms this read.
         async with asyncio.timeout(timeout):
             await self.wait_ready(timeout)
             index = await self.propose(encode_command(NoOpCommand()), timeout)
@@ -336,7 +328,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                     entry = self.store.get_entry(index)
                     if entry is None:
                         raise RuntimeError(f"Committed Raft entry {index} is missing")
-                # No Raft lock while waiting for a document lock or applying state.
                 await self.state_machine.apply(entry)
                 async with self.lock:
                     self.last_applied = index
@@ -381,7 +372,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 self._adopt_term(request.term)
                 if request.term < self.term:
                     return raft_pb2.AppendEntriesResponse(term=self.term, success=False)
-                # Validate the whole batch before writing even its first entry.
                 previous_term = request.prev_log_term
                 for index, entry in enumerate(request.entries, start=request.prev_log_index + 1):
                     if entry.index != index or not 0 < entry.term <= request.term or entry.term < previous_term:
@@ -463,7 +453,6 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         async with self.lock:
             if self._failure is not None or self._stopping:
                 return peer, None
-            # Even a reply to an old round can teach us about a newer term.
             self._adopt_term(response.term)
         return peer, response
 
@@ -529,7 +518,7 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
                 matched_index = request.prev_log_index + len(request.entries)
                 if response.success:
                     if response.match_index != matched_index:
-                        return  # Acknowledge only the range this request actually sent.
+                        return
                     self.match_index[peer] = max(self.match_index[peer], matched_index)
                     self.next_index[peer] = max(self.next_index[peer], matched_index + 1)
                     self._advance_commit()

@@ -117,8 +117,6 @@ class DocumentStore:
 
     @staticmethod
     def _merge_update(state, update):
-        # Match the save/reload boundary of each accepted revision, including
-        # updates with unresolved CRDT dependencies. Do not retain a replay Doc.
         doc = Doc()
         doc.apply_update(state)
         try:
@@ -128,8 +126,6 @@ class DocumentStore:
         return doc.get_update()
 
     def apply(self, command):
-        # Returning from inside this block commits before the caller gets a result.
-        # Any exception rolls back both the document and the request record.
         try:
             with self._db:
                 if isinstance(command, CreateDocumentCommand):
@@ -209,7 +205,6 @@ class DocumentStore:
                 return replace(self.get_outcome(index), changed=False)
             if index != last + 1:
                 raise ValueError("Committed entries must be applied consecutively")
-            # BEGIN is needed because SAVEPOINT alone would commit on RELEASE.
             self._db.execute("BEGIN")
             self._db.execute("SAVEPOINT command")
             try:
@@ -309,8 +304,6 @@ class DocumentStore:
         try:
             current = self.get_revision(document_id)
             oldest = self._version_bounds(document_id, current)
-            # A future uint64 cursor includes every saved revision. Avoid binding
-            # values outside SQLite's signed integer range.
             if before_revision is None or before_revision > current:
                 rows = self._db.execute("""
                     SELECT revision, author_id FROM document_versions

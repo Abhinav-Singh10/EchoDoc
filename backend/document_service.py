@@ -154,7 +154,6 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             document_id=request.document_id, request_id=request.request_id,
             author=author, update=request.update,
         )
-        # The application worker takes the document lock; never hold it here.
         result = await submit_write(self.raft, self.store, command, context, deadline)
         return document_pb2.SubmitUpdateResponse(revision=result.revision)
 
@@ -249,7 +248,6 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             yield snapshot
             next_check = time.monotonic() + 1
             while True:
-                # Check the clock even when the event queue never becomes empty.
                 if time.monotonic() >= next_check:
                     next_check = time.monotonic() + 1
                     await consistent_read(self.raft, context)

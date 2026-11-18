@@ -68,17 +68,16 @@ class SystemService(system_pb2_grpc.SystemServiceServicer):
         return system_pb2.ClusterInfo(responding_server_id=self.server_id, nodes=nodes)
 
     async def WatchEvents(self, request, context):
-        subscription_id = str(uuid.uuid4())  # Distinguishes client calls
-        sequence = 1  # number of req. in the same call
+        subscription_id = str(uuid.uuid4()) 
+        sequence = 1 
 
         logger.info("Stream started: subscription=%s", subscription_id)
 
         try:
             while True:
-                timestamp = Timestamp()  # Calander based
-                timestamp.GetCurrentTime()  # Monotonic, unaffected by calander clock
+                timestamp = Timestamp() 
+                timestamp.GetCurrentTime()
 
-                # Using yeild instead of return cause its a responese stream
                 yield system_pb2.ServerEvent(
                     process_instance_id=self.process_instance_id,
                     sequence=sequence,
@@ -88,7 +87,7 @@ class SystemService(system_pb2_grpc.SystemServiceServicer):
                 sequence += 1
                 await asyncio.sleep(
                     1
-                )  # not the same as time.sleep(1) which blocks the event loop
+                )
         except Exception:
             logger.exception("Stream failed: subscription=%s", subscription_id)
             raise

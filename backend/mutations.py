@@ -54,7 +54,6 @@ async def route_write(raft, request, context, stub_type, method):
 
 async def submit_write(raft, store, command, context, deadline):
     try:
-        # Password verification can yield long enough for leadership to change.
         await raft.wait_ready(remaining(deadline))
         index = await raft.propose(encode_command(command), remaining(deadline))
         await raft.wait_applied(index, remaining(deadline))

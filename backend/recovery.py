@@ -1,4 +1,3 @@
-"""Read-only checks of restored Raft/application metadata before serving RPCs."""
 
 from contextlib import closing
 from pathlib import Path
