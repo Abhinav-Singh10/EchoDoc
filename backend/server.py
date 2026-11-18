@@ -15,6 +15,7 @@ from backend.document_service import DocumentService
 from backend.document_store import DocumentStore
 from backend.raft_store import RaftStore
 from backend.raft_node import RaftNode, validate_members
+from backend.recovery import validate_recovery
 from backend.state_machine import StateMachine
 from collab.raft.v1 import raft_pb2_grpc
 from collab.document.v1 import document_pb2_grpc
@@ -40,6 +41,8 @@ async def serve():
 
 async def serve_application(server, node_id, address, members, database, store):
     with closing(RaftStore(database)) as raft_store:
+        last_log, restored_applied = validate_recovery(node_id, database)
+        print(f"Recovery {node_id}: last_log={last_log}, restored_applied={restored_applied}", flush=True)
         machine = StateMachine(store)
         raft_node = RaftNode(node_id, members, raft_store, state_machine=machine)
         auth_service = AuthService(store, raft_node)

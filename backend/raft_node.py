@@ -81,7 +81,15 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
             raise RuntimeError("Raft node has already been started")
         for peer, address in self.members.items():
             if peer != self.node_id:
-                channel = grpc.aio.insecure_channel(address)
+                # gRPC's long default reconnect backoff can outlive election
+                # timeouts after an outage. Keep peer reconnection on our RPC
+                # timescale so a returning follower receives heartbeats promptly.
+                reconnect_ms = max(1, int(self.rpc_timeout * 1000))
+                channel = grpc.aio.insecure_channel(address, options=(
+                    ("grpc.initial_reconnect_backoff_ms", reconnect_ms),
+                    ("grpc.min_reconnect_backoff_ms", reconnect_ms),
+                    ("grpc.max_reconnect_backoff_ms", reconnect_ms),
+                ))
                 self._channels[peer] = channel
                 self._clients[peer] = raft_pb2_grpc.RaftServiceStub(channel)
         self._reset_deadline()

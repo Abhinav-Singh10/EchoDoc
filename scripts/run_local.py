@@ -48,18 +48,22 @@ def check_ports(config):
         ("frontend", config.get("frontend_host", "127.0.0.1"), config["frontend_port"]),
     ]
     for name, host, port in ports:
-        with socket.socket() as probe:
-            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            try:
-                probe.bind((host, port))
-            except OSError as error:
-                raise ValueError(
-                    f"{name} cannot use {host}:{port}: {error}. "
-                    "Stop your old stack or edit the configuration; no processes were stopped."
-                ) from error
+        check_port(name, host, port)
 
 
-def check_setup(config):
+def check_port(name, host, port):
+    with socket.socket() as probe:
+        probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            probe.bind((host, port))
+        except OSError as error:
+            raise ValueError(
+                f"{name} cannot use {host}:{port}: {error}. "
+                "Stop your old stack or edit the configuration; no processes were stopped."
+            ) from error
+
+
+def check_backend_setup(config):
     users = ROOT / config["users"]
     if not users.is_file():
         raise ValueError(
@@ -71,6 +75,23 @@ def check_setup(config):
         generated = ROOT / f"backend/generated/collab/{service}/v1/{service}_pb2_grpc.py"
         if not generated.is_file():
             raise ValueError("Missing Python RPC definitions. Run python scripts/generate_protos.py.")
+
+
+def backend_environment(config, node, environment=None):
+    members = {item["id"]: f"127.0.0.1:{item['app_port']}" for item in config["nodes"]}
+    return dict(
+        os.environ if environment is None else environment,
+        PYTHONPATH=str(ROOT / "backend/generated"),
+        SERVER_ID=node["id"], APP_BIND=f"127.0.0.1:{node['app_port']}",
+        DATABASE_PATH=str((ROOT / node["database"]).resolve()),
+        USERS_PATH=str((ROOT / config["users"]).resolve()),
+        AI_ADDRESS=f"127.0.0.1:{config['ai_port']}", RAFT_MEMBERS=json.dumps(members),
+    )
+
+
+def check_setup(config):
+    check_backend_setup(config)
+    for service in ("auth", "document", "system", "ai", "raft"):
         if not (ROOT / f"frontend/src/gen/collab/{service}/v1/{service}_pb.ts").is_file():
             raise ValueError("Missing frontend RPC definitions. Run npm --prefix frontend run generate.")
     if not (ROOT / "frontend/node_modules/.bin/vite").is_file():
@@ -148,14 +169,8 @@ def main(argv=None):
         gateway = Path(folder) / "envoy.json"
         gateway.write_text(json.dumps(gateway_config(config)))
         commands = []
-        members = {node["id"]: f"127.0.0.1:{node['app_port']}" for node in config["nodes"]}
         for node in config["nodes"]:
-            node_env = dict(
-                env, SERVER_ID=node["id"],
-                APP_BIND=f"127.0.0.1:{node['app_port']}",
-                DATABASE_PATH=str(ROOT / node["database"]),
-                RAFT_MEMBERS=json.dumps(members),
-            )
+            node_env = backend_environment(config, node, env)
             commands.append((node["id"], [sys.executable, "-u", "-m", "backend.server"], node_env))
             print(f"{node['id']}: port {node['app_port']}, database {node_env['DATABASE_PATH']}", flush=True)
         commands += [
