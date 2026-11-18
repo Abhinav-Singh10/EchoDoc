@@ -49,6 +49,8 @@ label { font-size: 13px; font-weight: 600; }
 .login-card button { width: 100%; margin: 4px 0 0; background: #256e59; color: white; }
 .login-card button:hover:not(:disabled) { background: #1d5746; }
 .workspace { display: grid; grid-template-columns: 240px minmax(0,1fr); gap: 20px; align-items: start; }
+.document-sidebar-column { display: grid; gap: 20px; min-width: 0; }
+.document-main { min-width: 0; }
 .document-sidebar { padding: 20px; background: white; border: 1px solid #dce3e1; border-radius: 9px; }
 .document-sidebar fieldset { border: 0; padding: 0; margin: 12px 0; }
 .document-sidebar ul { list-style: none; padding: 0; }
@@ -69,10 +71,12 @@ label { font-size: 13px; font-weight: 600; }
 .ai-result pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .ai-result button { font-size: 12px; }
 .empty-state { min-height: 300px; padding: 70px 40px; border: 1px dashed #b9cdc0; border-radius: 9px; color: #5e7a69; }
-.version-history { margin-top: 20px; padding-top: 16px; border-top: 1px solid #dce3e1; font-size: 13px; }
-.history-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 18px; margin-top: 12px; }
+.version-history { padding: 20px; border: 1px solid #dce3e1; border-radius: 9px; background: white; font-size: 13px; min-width: 0; }
+.version-history h2 { margin-top: 0; }
+.history-document-title { color: #5e7a69; overflow-wrap: anywhere; }
+.history-layout { display: grid; grid-template-columns: minmax(0,1fr); gap: 18px; margin-top: 12px; }
 .version-list { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow: auto; }
-.version-list button { display: block; width: calc(100% - 8px); text-align: left; }
+.version-list button { display: block; width: 100%; margin: 4px 0; text-align: left; }
 .version-list small { display: block; color: #5e7a69; overflow-wrap: anywhere; }
 .version-list button[aria-pressed=true] { background: #e5f0e9; border-color: #527b6e; }
 .version-preview { margin: 0; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid #dce3e1; border-radius: 6px; background: #f3f7f3; }

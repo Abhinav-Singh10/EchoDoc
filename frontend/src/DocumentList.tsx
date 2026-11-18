@@ -3,6 +3,7 @@ import type { DocumentInfo } from './gen/collab/document/v1/document_pb'
 import { documentClient } from './rpc'
 
 import DocumentPreview from './DocumentPreview'
+import HistoryPanel from './HistoryPanel'
 import { retryRead } from './recovery'
 
 type Props = { token: string; pendingCount: number; onPendingChange: (count: number) => void }
@@ -76,6 +77,7 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
  
   return (
     <section className="workspace">
+      <div className="document-sidebar-column">
       <aside className="document-sidebar">
       <h2>Documents</h2>
       <form
@@ -126,6 +128,16 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
       </ul>
       {pendingCount > 0 && <p>Wait for Saved before switching documents or logging out.</p>}
       </aside>
+      {selected ? <HistoryPanel
+        key={selected.documentId}
+        documentId={selected.documentId}
+        title={selected.title}
+        token={token}
+      /> : <section className="version-history" aria-label="Document version history">
+        <h2>Version history</h2>
+        <p>Open a document to view its saved revisions.</p>
+      </section>}
+      </div>
       <div className="document-main">
       {!selected && <p className="empty-state">Create or open a document to begin collaborating.</p>}
       {selected && (

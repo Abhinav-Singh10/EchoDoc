@@ -125,12 +125,14 @@ function HistoryContents({ documentId, token }: Props) {
   );
 }
 
-export default function HistoryPanel({ documentId, token }: Props) {
+export default function HistoryPanel({ documentId, token, title }: Props & { title: string }) {
   const [open, setOpen] = useState(false);
   return (
     <section className="version-history" aria-label="Document version history">
+      <h2>Version history</h2>
+      <p className="history-document-title">{title}</p>
       <button type="button" disabled={!token} aria-expanded={open} onClick={() => setOpen(value => !value)}>
-        {open ? "Close version history" : "Version history"}
+        {open ? "Hide revisions" : "Show revisions"}
       </button>
       {open && token && <HistoryContents key={`${documentId}:${token}`} documentId={documentId} token={token} />}
     </section>
