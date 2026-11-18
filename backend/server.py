@@ -43,6 +43,7 @@ async def serve_application(server, node_id, address, members, database, store):
     with closing(RaftStore(database)) as raft_store:
         last_log, restored_applied = validate_recovery(node_id, database)
         print(f"Recovery {node_id}: last_log={last_log}, restored_applied={restored_applied}", flush=True)
+        store.initialize_history()
         machine = StateMachine(store)
         raft_node = RaftNode(node_id, members, raft_store, state_machine=machine)
         auth_service = AuthService(store, raft_node)

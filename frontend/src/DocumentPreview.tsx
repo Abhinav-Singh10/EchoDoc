@@ -9,6 +9,7 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import { backoff, pause, retryable } from "./recovery";
 import { Action } from "./gen/collab/ai/v1/ai_pb";
 import WritingPanel from "./WritingPanel";
+import HistoryPanel from "./HistoryPanel";
 import type { WritingEditor } from "./writing";
 import type { Presence } from "./gen/collab/document/v1/document_pb";
 
@@ -459,6 +460,7 @@ export default function DocumentPreview({
         ready={connected && !connecting && !error && pendingCount === 0} 
         version={editVersion} revision={revision} lastTyped={lastTyped} />
         </div>
+      <HistoryPanel documentId={documentId} token={token} />
     </article>
   );
 }

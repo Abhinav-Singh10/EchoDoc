@@ -11,6 +11,31 @@ service DocumentService {
   rpc SubmitUpdate(SubmitUpdateRequest) returns (SubmitUpdateResponse);
   rpc WatchDocument(WatchDocumentRequest) returns (stream DocumentEvent);
   rpc UpdatePresence(PresenceRequest) returns (google.protobuf.Empty);
+  rpc ListDocumentVersions(ListDocumentVersionsRequest) returns (ListDocumentVersionsResponse);
+  rpc GetDocumentVersion(GetDocumentVersionRequest) returns (GetDocumentResponse);
+}
+
+message DocumentVersionInfo {
+  uint64 revision = 1;
+  string author_id = 2;
+  string author_username = 3;
+}
+
+message ListDocumentVersionsRequest {
+  string document_id = 1;
+  optional uint64 before_revision = 2;
+}
+
+message ListDocumentVersionsResponse {
+  repeated DocumentVersionInfo versions = 1;
+  uint64 current_revision = 2;
+  uint64 oldest_available_revision = 3;
+  optional uint64 next_before_revision = 4;
+}
+
+message GetDocumentVersionRequest {
+  string document_id = 1;
+  uint64 revision = 2;
 }
 
 message DocumentInfo {

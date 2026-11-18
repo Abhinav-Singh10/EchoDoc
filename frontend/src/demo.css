@@ -48,5 +48,14 @@ label { font-size: 13px; font-weight: 600; }
 .ai-result pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 .ai-result button { font-size: 12px; }
 .empty-state { min-height: 300px; padding: 70px 40px; border: 1px dashed #b9cdc0; border-radius: 9px; color: #5e7a69; }
+.version-history { margin-top: 20px; padding-top: 16px; border-top: 1px solid #dce3e1; font-size: 13px; }
+.history-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 18px; margin-top: 12px; }
+.version-list { list-style: none; padding: 0; margin: 0; max-height: 320px; overflow: auto; }
+.version-list button { display: block; width: calc(100% - 8px); text-align: left; }
+.version-list small { display: block; color: #5e7a69; overflow-wrap: anywhere; }
+.version-list button[aria-pressed=true] { background: #e5f0e9; border-color: #527b6e; }
+.version-preview { margin: 0; max-height: 360px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 12px; border: 1px solid #dce3e1; border-radius: 6px; background: #f3f7f3; }
+.history-layout > section { min-width: 0; }
+@media(max-width:700px) { .history-layout { grid-template-columns: 1fr; } }
 @media(max-width:1100px) { .editor-columns { grid-template-columns: 1fr; } }
 @media(max-width:700px) { #root { padding: 18px 12px; } .workspace { grid-template-columns: 1fr; } header h1 { font-size: 34px; } }

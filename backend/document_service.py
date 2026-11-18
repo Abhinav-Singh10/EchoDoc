@@ -158,6 +158,40 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         result = await submit_write(self.raft, self.store, command, context, deadline)
         return document_pb2.SubmitUpdateResponse(revision=result.revision)
 
+    async def ListDocumentVersions(self, request, context):
+        await consistent_read(self.raft, context)
+        await self.auth.require_session(context)
+        try:
+            before = request.before_revision if request.HasField("before_revision") else None
+            result = self.store.list_document_versions(request.document_id, before)
+            names = {account["user_id"]: account["username"] for account in self.auth.users.values()}
+            response = document_pb2.ListDocumentVersionsResponse(
+                versions=[document_pb2.DocumentVersionInfo(
+                    revision=row["revision"], author_id=row["author_id"],
+                    author_username=names.get(row["author_id"], ""),
+                ) for row in result["versions"]],
+                current_revision=result["current_revision"],
+                oldest_available_revision=result["oldest_available_revision"],
+            )
+            if result["next_before_revision"] is not None:
+                response.next_before_revision = result["next_before_revision"]
+            return response
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
+
+    async def GetDocumentVersion(self, request, context):
+        await consistent_read(self.raft, context)
+        await self.auth.require_session(context)
+        try:
+            version = self.store.get_document_version(request.document_id, request.revision)
+            return document_pb2.GetDocumentResponse(
+                document=document_pb2.DocumentInfo(
+                    document_id=version["document_id"], title=version["title"], revision=version["revision"],
+                ), state=version["state"],
+            )
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
+
     def broadcast_update(self, command, outcome):
         event = document_pb2.DocumentEvent(
             kind="update", update=command.update, revision=outcome.revision,

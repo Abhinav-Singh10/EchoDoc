@@ -49,6 +49,83 @@ class DocumentStore:
                     PRIMARY KEY (document_id, request_id)
                 )
             """)
+            self._db.execute("""
+                CREATE TABLE IF NOT EXISTS document_versions (
+                    document_id TEXT NOT NULL,
+                    revision INTEGER NOT NULL CHECK (revision >= 0),
+                    state BLOB NOT NULL,
+                    author_id TEXT NOT NULL,
+                    PRIMARY KEY (document_id, revision)
+                )
+            """)
+
+    def initialize_history(self):
+        """Backfill missing histories before serving, using only applied creations."""
+        try:
+            with self._db:
+                self._db.execute("BEGIN")
+                documents = self._db.execute("""
+                    SELECT * FROM documents d WHERE NOT EXISTS (
+                        SELECT 1 FROM document_versions v WHERE v.document_id = d.id
+                    ) ORDER BY id
+                """).fetchall()
+                if not documents:
+                    return
+                members = json.loads(self._db.execute(
+                    "SELECT member_ids FROM application_state WHERE id = 1",
+                ).fetchone()[0])
+                missing = {row["id"] for row in documents}
+                creations = {}
+                for row in self._db.execute("""
+                    SELECT l.command FROM raft_log l
+                    JOIN applied_results a ON a.log_index = l.log_index
+                    WHERE l.log_index <= ? AND a.changed = 1 AND a.error_code IS NULL
+                    ORDER BY l.log_index
+                """, (self.get_last_applied(),)):
+                    command = decode_command(row[0])
+                    if isinstance(command, CreateDocumentCommand) and command.document_id in missing:
+                        creations.setdefault(command.document_id, command)
+                for row in documents:
+                    doc_id = row["id"]
+                    creation = creations.get(doc_id)
+                    if creation is None:
+                        if len(members) != 1:
+                            raise ValueError(f"No successful applied creation for cluster document {doc_id}")
+                        self._record_version(doc_id, row["revision"], row["state"], "")
+                        continue
+                    state, revision = creation.state, 0
+                    self._record_version(doc_id, 0, state, "")
+                    for saved in self._db.execute("""
+                        SELECT revision, author, update_bytes FROM updates
+                        WHERE document_id = ? ORDER BY revision
+                    """, (doc_id,)):
+                        if saved["revision"] != revision + 1 or saved["revision"] > row["revision"]:
+                            raise ValueError(f"Nonconsecutive saved updates for document {doc_id}")
+                        state = self._merge_update(state, saved["update_bytes"])
+                        revision = saved["revision"]
+                        self._record_version(doc_id, revision, state, saved["author"])
+                    if revision != row["revision"] or state != row["state"]:
+                        raise ValueError(f"Reconstructed history differs from saved document {doc_id}")
+        except (sqlite3.Error, ValueError, StoreError) as error:
+            raise StoreError("INTERNAL", f"Could not initialize document history: {error}") from error
+
+    def _record_version(self, document_id, revision, state, author_id):
+        self._db.execute(
+            "INSERT INTO document_versions VALUES (?, ?, ?, ?)",
+            (document_id, revision, state, author_id),
+        )
+
+    @staticmethod
+    def _merge_update(state, update):
+        # Match the save/reload boundary of each accepted revision, including
+        # updates with unresolved CRDT dependencies. Do not retain a replay Doc.
+        doc = Doc()
+        doc.apply_update(state)
+        try:
+            doc.apply_update(update)
+        except Exception as error:
+            raise StoreError("INVALID_ARGUMENT", "Invalid CRDT update") from error
+        return doc.get_update()
 
     def apply(self, command):
         # Returning from inside this block commits before the caller gets a result.
@@ -188,6 +265,7 @@ class DocumentStore:
             "INSERT INTO documents (id, title, state, revision) VALUES (?, ?, ?, 0)",
             (command.document_id, command.title, command.state),
         )
+        self._record_version(command.document_id, 0, command.state, "")
         return ApplyResult(revision=0, changed=True)
 
     def _update(self, command):
@@ -203,22 +281,72 @@ class DocumentStore:
                 raise StoreError("ALREADY_EXISTS", "Request ID was already used for a different update")
             return ApplyResult(revision=previous["revision"], changed=False)
 
-        doc = Doc()
-        doc.apply_update(row["state"])
-        try:
-            doc.apply_update(command.update)
-        except Exception as error:
-            raise StoreError("INVALID_ARGUMENT", "Invalid CRDT update") from error
+        state = self._merge_update(row["state"], command.update)
         revision = row["revision"] + 1
         self._db.execute(
             "UPDATE documents SET state = ?, revision = ? WHERE id = ?",
-            (doc.get_update(), revision, command.document_id),
+            (state, revision, command.document_id),
         )
         self._db.execute("""
             INSERT INTO updates (document_id, request_id, author, update_bytes, revision)
             VALUES (?, ?, ?, ?, ?)
         """, (command.document_id, command.request_id, command.author, command.update, revision))
+        self._record_version(command.document_id, revision, state, command.author)
         return ApplyResult(revision=revision, changed=True)
+
+    def _version_bounds(self, document_id, current):
+        count, oldest, latest = self._db.execute("""
+            SELECT count(*), min(revision), max(revision) FROM document_versions
+            WHERE document_id = ?
+        """, (document_id,)).fetchone()
+        if not count or oldest < 0 or latest != current or count != current - oldest + 1:
+            raise StoreError("INTERNAL", "Saved document history is incomplete")
+        return oldest
+
+    def list_document_versions(self, document_id, before_revision=None):
+        if before_revision is not None and (type(before_revision) is not int or before_revision < 0):
+            raise StoreError("INVALID_ARGUMENT", "Revision cursor must be a nonnegative integer")
+        try:
+            current = self.get_revision(document_id)
+            oldest = self._version_bounds(document_id, current)
+            # A future uint64 cursor includes every saved revision. Avoid binding
+            # values outside SQLite's signed integer range.
+            if before_revision is None or before_revision > current:
+                rows = self._db.execute("""
+                    SELECT revision, author_id FROM document_versions
+                    WHERE document_id = ? ORDER BY revision DESC LIMIT 51
+                """, (document_id,)).fetchall()
+            else:
+                rows = self._db.execute("""
+                    SELECT revision, author_id FROM document_versions
+                    WHERE document_id = ? AND revision < ? ORDER BY revision DESC LIMIT 51
+                """, (document_id, before_revision)).fetchall()
+            return {
+                "current_revision": current, "oldest_available_revision": oldest,
+                "versions": [dict(row) for row in rows[:50]],
+                "next_before_revision": rows[49]["revision"] if len(rows) > 50 else None,
+            }
+        except sqlite3.Error as error:
+            raise StoreError("INTERNAL", "Could not list document versions") from error
+
+    def get_document_version(self, document_id, revision):
+        if type(revision) is not int or revision < 0:
+            raise StoreError("INVALID_ARGUMENT", "Revision must be a nonnegative integer")
+        try:
+            document = self.get_document(document_id)
+            oldest = self._version_bounds(document_id, document["revision"])
+            if not oldest <= revision <= document["revision"]:
+                raise StoreError("NOT_FOUND", "Document version is outside the available history")
+            row = self._db.execute("""
+                SELECT state, author_id FROM document_versions
+                WHERE document_id = ? AND revision = ?
+            """, (document_id, revision)).fetchone()
+            if row is None:
+                raise StoreError("INTERNAL", "Saved document version is missing")
+            return {"document_id": document_id, "title": document["title"], "revision": revision,
+                    "state": row["state"], "author_id": row["author_id"]}
+        except sqlite3.Error as error:
+            raise StoreError("INTERNAL", "Could not load document version") from error
 
     def get_document(self, document_id):
         try:
