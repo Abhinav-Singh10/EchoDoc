@@ -128,7 +128,19 @@
       {
         "name": "python_backend",
         "type": "STATIC",
-        "connect_timeout": "2s",
+        "connect_timeout": "0.5s",
+        "lb_policy": "ROUND_ROBIN",
+        "common_lb_config": { "healthy_panic_threshold": { "value": 0 } },
+        "health_checks": [
+          {
+            "timeout": "0.5s",
+            "interval": "1s",
+            "no_traffic_interval": "1s",
+            "unhealthy_threshold": 2,
+            "healthy_threshold": 1,
+            "tcp_health_check": {}
+          }
+        ],
         "typed_extension_protocol_options": {
           "envoy.extensions.upstreams.http.v3.HttpProtocolOptions": {
             "@type": "type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions",

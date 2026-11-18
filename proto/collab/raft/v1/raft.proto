@@ -6,6 +6,15 @@ package collab.raft.v1;
 service RaftService {
   rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
   rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+  rpc ReadBarrier(ReadBarrierRequest) returns (ReadBarrierResponse);
+}
+
+message ReadBarrierRequest {
+  string requester_id = 1;
+}
+
+message ReadBarrierResponse {
+  uint64 read_index = 1;
 }
 
 message RequestVoteRequest {

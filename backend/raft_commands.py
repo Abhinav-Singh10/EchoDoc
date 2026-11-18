@@ -1,5 +1,3 @@
-"""Convert prepared commands to and from Raft log payloads, without applying them."""
-
 from google.protobuf.message import DecodeError
 
 from backend.commands import (

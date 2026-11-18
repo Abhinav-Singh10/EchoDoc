@@ -1,5 +1,3 @@
-"""Show each configured node's own view of the election, over native gRPC."""
-
 import argparse
 import asyncio
 
@@ -31,7 +29,7 @@ async def show_status(config):
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Show each configured node's own view of the election, over native gRPC.")
     parser.add_argument("--config", default="deploy/local.json")
     args = parser.parse_args()
     asyncio.run(show_status(load_config(args.config)))

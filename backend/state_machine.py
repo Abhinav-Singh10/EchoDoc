@@ -1,5 +1,3 @@
-"""Apply ordered log entries and publish document changes after persistence."""
-
 import asyncio
 from collections import defaultdict
 

@@ -57,12 +57,14 @@ message DocumentEvent {
   uint64 revision = 3;
   string request_id = 4;
   repeated Presence users = 5;
+  string stream_server_id = 6;
 }
 
 message PresenceRequest {
   string document_id = 1;
   string connection_id = 2;
   bool editing = 3;
+  string stream_server_id = 4;
 }
 
 message Presence {

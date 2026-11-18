@@ -1,6 +1,7 @@
 import uuid
 import grpc
 import asyncio
+import time
 from google.protobuf.empty_pb2 import Empty
 
 from collections import defaultdict
@@ -10,6 +11,7 @@ from collab.document.v1 import document_pb2_grpc
 from backend.commands import CreateDocumentCommand, SubmitUpdateCommand
 from backend.document_store import DocumentStore, StoreError
 from backend.mutations import route_write, submit_write
+from backend.reads import consistent_read
 
 
 class DocumentService(document_pb2_grpc.DocumentServiceServicer):
@@ -60,6 +62,25 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             queue.put_nowait(event)
 
     async def UpdatePresence(self, request, context):
+        owner = request.stream_server_id
+        metadata = dict(context.invocation_metadata())
+        if owner and owner not in self.raft.members:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Unknown stream owner")
+        if owner and owner != self.raft.node_id:
+            if "x-presence-forwarded" in metadata:
+                await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Presence forwarding loop")
+            headers = [("x-presence-forwarded", "1")]
+            if "authorization" in metadata:
+                headers.append(("authorization", metadata["authorization"]))
+            budget = context.time_remaining()
+            async with grpc.aio.insecure_channel(self.raft.members[owner]) as channel:
+                try:
+                    return await document_pb2_grpc.DocumentServiceStub(channel).UpdatePresence(
+                        request, metadata=headers, timeout=min(5.0, budget) if budget is not None else 5.0,
+                    )
+                except grpc.RpcError as error:
+                    await context.abort(error.code(), error.details())
+        await consistent_read(self.raft, context)
         token, _ = await self.auth.require_session(context)
         doc_id, conn_id = request.document_id, request.connection_id
         async with self.locks[doc_id]:
@@ -75,6 +96,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         return Empty()
 
     async def ListDocuments(self, request, context):
+        await consistent_read(self.raft, context)
         await self.auth.require_session(context)
 
         try:
@@ -96,6 +118,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         )
 
     async def GetDocument(self, request, context):
+        await consistent_read(self.raft, context)
         await self.auth.require_session(context)
 
         try:
@@ -144,6 +167,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
             queue.put_nowait(event)
 
     async def WatchDocument(self, request, context):
+        await consistent_read(self.raft, context)
         token, session = await self.auth.require_session(context)
 
         document_id = request.document_id
@@ -173,6 +197,7 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
                 kind="snapshot",
                 update=row["state"],
                 revision=row["revision"],
+                stream_server_id=self.raft.node_id,
             )
 
             self.subscribers[document_id][connection_id] = queue
@@ -188,14 +213,20 @@ class DocumentService(document_pb2_grpc.DocumentServiceServicer):
         try:
             await self.auth.require_session(context)
             yield snapshot
-
+            next_check = time.monotonic() + 1
             while True:
+                # Check the clock even when the event queue never becomes empty.
+                if time.monotonic() >= next_check:
+                    next_check = time.monotonic() + 1
+                    await consistent_read(self.raft, context)
+                    await self.auth.require_session(context)
+                    yield document_pb2.DocumentEvent(kind="heartbeat")
                 await self.auth.require_session(context)
 
                 try:
                     event = await asyncio.wait_for(
                         queue.get(),
-                        timeout=1,
+                        timeout=max(0.001, next_check - time.monotonic()),
                     )
                 except asyncio.TimeoutError:
                     continue

@@ -1,5 +1,3 @@
-"""One-hop mutation forwarding and commit/apply waits using one request budget."""
-
 import sqlite3
 import time
 

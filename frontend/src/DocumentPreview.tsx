@@ -5,6 +5,8 @@ import { defaultKeymap } from "@codemirror/commands";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import * as Y from "yjs";
 import { documentClient } from "./rpc";
+import { Code, ConnectError } from "@connectrpc/connect";
+import { backoff, pause, retryable } from "./recovery";
 import { Action } from "./gen/collab/ai/v1/ai_pb";
 import WritingPanel from "./WritingPanel";
 import type { WritingEditor } from "./writing";
@@ -42,6 +44,7 @@ export default function DocumentPreview({
   const reconnect = useRef<(() => void) | null>(null);
   const [presenceError, setPresenceError] = useState("");
   const [users, setUsers] = useState<Presence[]>([]);
+  const [streamServer, setStreamServer] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -53,13 +56,17 @@ export default function DocumentPreview({
 
     const pending = local.pending;
 
-    let sending = false;
-    let stopped = false;
+    let sending: Promise<void> | null = null;
+    let stopped = true;
     let streamConnected = false;
     let latestRevision = 0n;
     let version = local.version;
     let watching = false;
+    let attempt: AbortController | null = null;
+    let saveError: unknown;
+    let manualRestart = false;
     let connectionId = "";
+    let streamServerId = "";
     let lastEdit = 0;
     let lastPresence: boolean | null = null;
     let presenceSending = false;
@@ -68,22 +75,23 @@ export default function DocumentPreview({
       const active = Date.now() - lastEdit < 3000;
       if (!streamConnected || presenceSending || lastPresence === active)
         return;
+      const current = attempt;
       presenceSending = true;
       try {
         await documentClient.updatePresence(
-          { documentId, connectionId, editing: active },
+          { documentId, connectionId, streamServerId, editing: active },
           {
             headers: { authorization: `Bearer ${token}` },
             timeoutMs: 5000,
-            signal: controller.signal,
+            signal: current?.signal,
           },
         );
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && current === attempt && !current?.signal.aborted) {
           lastPresence = active;
           setPresenceError("");
         }
       } catch {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted && current === attempt && !current?.signal.aborted)
           setPresenceError("Could not update editing status.");
       } finally {
         presenceSending = false;
@@ -180,13 +188,12 @@ export default function DocumentPreview({
       });
     }
 
-    async function flushUpdates() {
-      if (sending || stopped || controller.signal.aborted) return;
-
-      sending = true;
-
-      try {
-        while (pending.length > 0 && !stopped && !controller.signal.aborted) {
+    function flushUpdates(): Promise<void> {
+      if (sending) return sending;
+      const current = attempt;
+      if (!streamConnected || !current || current.signal.aborted) return Promise.resolve();
+      sending = (async () => {
+        while (pending.length > 0 && !current.signal.aborted) {
           const next = pending[0];
 
           const response = await documentClient.submitUpdate(
@@ -200,11 +207,11 @@ export default function DocumentPreview({
                 authorization: `Bearer ${token}`,
               },
               timeoutMs: 5000,
-              signal: controller.signal,
+              signal: current.signal,
             },
           );
 
-          if (controller.signal.aborted) return;
+          if (controller.signal.aborted || current.signal.aborted || current !== attempt) return;
 
           latestRevision =
             response.revision > latestRevision
@@ -216,15 +223,10 @@ export default function DocumentPreview({
           setPendingCount(pending.length);
           onPendingChange(pending.length);
         }
-      } catch {
-        if (!controller.signal.aborted) {
-          stopEditing(
-            "Saving was not confirmed. Retry if connected, or copy your text before closing.",
-          );
-        }
-      } finally {
-        sending = false;
-      }
+      })().finally(() => {
+        sending = null;
+      });
+      return sending;
     }
 
     function onLocalUpdate(update: Uint8Array, origin: unknown) {
@@ -240,148 +242,138 @@ export default function DocumentPreview({
 
       setPendingCount(pending.length);
       onPendingChange(pending.length);
-      void flushUpdates();
+      const current = attempt;
+      void flushUpdates().catch((error: unknown) => {
+        if (controller.signal.aborted || current !== attempt || current?.signal.aborted) return;
+        saveError = error;
+        stopEditing("Saving was not confirmed. Recovering the connection…");
+        current?.abort();
+      });
     }
 
     doc.on("update", onLocalUpdate);
 
     async function watch() {
       if (watching || controller.signal.aborted) return;
+      watching = true;
+      let failures = 0;
+      // Defer initial React state updates until after effect setup.
       await Promise.resolve();
-      if (controller.signal.aborted) return;
-      setConnected(false);
-      setUsers([]);
-      setRetrying(false);
-      setConnecting(!!token);
       if (!token) {
-        await Promise.resolve();
         if (!controller.signal.aborted) {
-          stopEditing(
-            "Log in again as the same user to recover pending edits.",
-          );
+          stopEditing("Log in again as the same user to recover pending edits.");
           setConnecting(false);
+          setConnected(false);
+          setStreamServer("");
         }
+        watching = false;
         return;
       }
-      if (watching || controller.signal.aborted) return;
-
-      watching = true;
-      connectionId = crypto.randomUUID();
-      lastPresence = null;
-
       try {
-        const stream = documentClient.watchDocument(
-          {
-            documentId,
-            connectionId,
-          },
-          {
-            headers: {
-              authorization: `Bearer ${token}`,
-            },
-            signal: controller.signal,
-          },
-        );
-
-        for await (const event of stream) {
-          if (controller.signal.aborted) return;
-
-          if (event.kind === "presence") {
-            setUsers(event.users);
-            continue;
-          }
-
-          if (event.kind !== "snapshot" && event.kind !== "update") {
-            continue;
-          }
-
-          Y.applyUpdate(doc, event.update, remoteOrigin);
-
-          latestRevision =
-            event.revision > latestRevision ? event.revision : latestRevision;
-          setRevision(latestRevision);
-
-          if (event.kind === "snapshot") {
-            streamConnected = true;
-            void sendPresence();
-            setConnected(true);
-            setConnecting(false);
-
-            if (pending.length > 0) {
-              stopEditing(
-                "Connected again. Click Retry save to confirm pending edits.",
-              );
-            } else {
-              stopped = false;
-              setError("");
-
-              editor.dispatch({
-                effects: editing.reconfigure(editingExtensions(true)),
-              });
-            }
-          }
-        }
-
-        if (!controller.signal.aborted) {
+        while (!controller.signal.aborted) {
+          attempt = new AbortController();
+          const current = attempt;
+          saveError = undefined;
+          manualRestart = false;
           streamConnected = false;
+          connectionId = crypto.randomUUID();
+          streamServerId = "";
+          lastPresence = null;
+          setStreamServer("");
           setConnected(false);
-          stopEditing("Stream ended. Restore the connection, then reconnect.");
+          setUsers([]);
+          setConnecting(true);
+          stopEditing("Connecting; pending edits are kept in this tab…");
+          let failure: unknown;
+          let lastEvent = performance.now();
+          const watchdog = setInterval(() => {
+            if (performance.now() - lastEvent >= 6000 && !current.signal.aborted) {
+              saveError = new ConnectError("Document stream stopped responding", Code.Unavailable);
+              stopEditing("Document stream stopped responding. Reconnecting…");
+              current.abort();
+            }
+          }, 250);
+          try {
+            const stream = documentClient.watchDocument(
+              { documentId, connectionId },
+              { headers: { authorization: `Bearer ${token}` }, signal: current.signal },
+            );
+            for await (const event of stream) {
+              if (controller.signal.aborted || current.signal.aborted) break;
+              lastEvent = performance.now();
+              if (event.kind === "presence") {
+                setUsers(event.users);
+                continue;
+              }
+              if (event.kind !== "snapshot" && event.kind !== "update") continue;
+              Y.applyUpdate(doc, event.update, remoteOrigin);
+              latestRevision = event.revision > latestRevision ? event.revision : latestRevision;
+              setRevision(latestRevision);
+              if (event.kind === "snapshot") {
+                streamServerId = event.streamServerId;
+                setStreamServer(streamServerId);
+                streamConnected = true;
+                setConnected(true);
+                setRetrying(pending.length > 0);
+                await flushUpdates();
+                if (controller.signal.aborted || current.signal.aborted) break;
+                stopped = false;
+                setError("");
+                setConnecting(false);
+                setRetrying(false);
+                failures = 0;
+                editor.dispatch({ effects: editing.reconfigure(editingExtensions(true)) });
+                void sendPresence();
+              }
+            }
+            failure = new ConnectError("Document stream ended", Code.Unavailable);
+          } catch (error) {
+            failure = error;
+          } finally {
+            clearInterval(watchdog);
+            current.abort();
+            streamConnected = false;
+            if (!controller.signal.aborted) {
+              setConnected(false);
+              setConnecting(true);
+              stopEditing("Connection lost. Recovering; pending edits are kept in this tab…");
+            }
+            // Drain the previous save before another attempt can send one.
+            try { await sending; } catch { /* Retain the pending update for recovery. */ }
+          }
+          if (controller.signal.aborted) return;
+          setConnected(false);
+          setUsers([]);
+          setStreamServer("");
+          setRetrying(false);
+          failure = saveError ?? failure;
+          if (!manualRestart && !retryable(failure)) {
+            const unauthenticated = failure instanceof ConnectError && failure.code === Code.Unauthenticated;
+            stopEditing(unauthenticated
+              ? "Session invalid. Log in again as the same user; pending edits are kept in this tab."
+              : `Recovery stopped: ${ConnectError.from(failure).rawMessage}. Copy your text before closing.`);
+            return;
+          }
+          stopEditing("Connection lost. Reconnecting automatically; pending edits are kept in this tab…");
+          if (!manualRestart) await pause(backoff(failures++), controller.signal);
         }
       } catch {
-        if (!controller.signal.aborted) {
-          streamConnected = false;
-          setConnected(false);
-          stopEditing(
-            "Stream disconnected. Restore the connection, then reconnect.",
-          );
-        }
+        // The only outer rejection is cancellation of the backoff on cleanup.
       } finally {
         watching = false;
-
-        if (!controller.signal.aborted) {
-          setConnecting(false);
-        }
+        if (!controller.signal.aborted) setConnecting(false);
       }
     }
 
-    retrySave.current = async () => {
-      if (sending || !streamConnected || controller.signal.aborted) {
-        return;
-      }
-
-      setRetrying(true);
-      setError("");
-      stopped = false;
-
-      try {
-        await flushUpdates();
-
-        if (!stopped && !controller.signal.aborted) {
-          editor.dispatch({
-            effects: editing.reconfigure(editingExtensions(true)),
-          });
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setRetrying(false);
-        }
-      }
-    };
-
-    reconnect.current = () => {
-      if (watching || controller.signal.aborted) return;
-
-      if (sending) {
-        setError(
-          "A save request is still finishing. Try Reconnect again in a moment.",
-        );
-        return;
-      }
-
-      setError("");
-      setConnecting(true);
-      void watch();
-    };
+    function restart() {
+      if (controller.signal.aborted) return;
+      if (watching) {
+        manualRestart = true;
+        attempt?.abort();
+      } else void watch();
+    }
+    retrySave.current = async () => restart();
+    reconnect.current = restart;
 
     function warnBeforeLeaving(event: BeforeUnloadEvent) {
       if (pending.length) {
@@ -398,6 +390,7 @@ export default function DocumentPreview({
       retrySave.current = null;
       reconnect.current = null;
       controller.abort();
+      attempt?.abort();
       clearInterval(presenceTimer);
       doc.off("update", onLocalUpdate);
       editor.destroy();
@@ -409,10 +402,10 @@ export default function DocumentPreview({
       <h3>{title}</h3>
 
       {error && <p role="alert">{error}</p>}
-      {connected && pendingCount > 0 && (error || retrying) && (
+      {pendingCount > 0 && (error || retrying) && (
         <button
           type="button"
-          disabled={retrying}
+          disabled={retrying || connecting || !token}
           onClick={() => {
             void retrySave.current?.();
           }}
@@ -445,7 +438,8 @@ export default function DocumentPreview({
       {presenceError && <p role="alert">{presenceError}</p>}
       {connected && (
         <div>
-          <p>Open connections, including this tab: {users.length}</p>
+          <p>Document stream backend: {streamServer || "unknown"}</p>
+          <p>Open connections on this backend, including this tab: {users.length}</p>
 
           <ul>
             {users.map((user) => (

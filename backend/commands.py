@@ -1,5 +1,3 @@
-"""Prepared application commands: replicas use exactly these supplied values."""
-
 from dataclasses import dataclass
 
 

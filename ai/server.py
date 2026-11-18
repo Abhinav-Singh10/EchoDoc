@@ -1,5 +1,3 @@
-"""Run the local CPU model as a separate gRPC process."""
-
 import asyncio
 import os
 import grpc

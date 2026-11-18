@@ -1,5 +1,3 @@
-"""Start the local app with replicated documents and sessions through Raft."""
-
 import argparse
 import json
 import os
@@ -91,8 +89,12 @@ def gateway_config(config):
     resources = gateway["static_resources"]
     listener = resources["listeners"][0]
     listener["address"]["socket_address"]["port_value"] = config["gateway_port"]
-    endpoint = resources["clusters"][0]["load_assignment"]["endpoints"][0]["lb_endpoints"][0]
-    endpoint["endpoint"]["address"]["socket_address"]["port_value"] = config["nodes"][0]["app_port"]
+    cluster = resources["clusters"][0]
+    cluster["load_assignment"]["endpoints"][0]["lb_endpoints"] = [
+        {"endpoint": {"address": {"socket_address": {
+            "address": "127.0.0.1", "port_value": node["app_port"],
+        }}}} for node in config["nodes"]
+    ]
     manager = listener["filter_chains"][0]["filters"][0]["typed_config"]
     host = manager["route_config"]["virtual_hosts"][0]
     cors = host["typed_per_filter_config"]["envoy.filters.http.cors"]
@@ -125,7 +127,7 @@ def stop_processes(children):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description='Start the local app with replicated documents and sessions through Raft.')
     parser.add_argument("--config", default="deploy/local.json")
     args = parser.parse_args(argv)
     config = load_config(args.config)
@@ -167,7 +169,7 @@ def main(argv=None):
                 children.append((name, child))
                 print(f"Started {name} (PID {child.pid})", flush=True)
             print(f"Open http://{env['FRONTEND_HOST']}:{config['frontend_port']} - wait for AI ready.", flush=True)
-            print(f"Gateway targets {config['nodes'][0]['id']} only. Writes forward to the elected leader.", flush=True)
+            print("Gateway uses all configured backends. Writes forward to the elected leader.", flush=True)
             print("Ctrl+C stops only this launcher's processes.", flush=True)
             reported = set()
             while True:

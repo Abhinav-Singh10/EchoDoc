@@ -1,5 +1,3 @@
-"""Fixed-membership Raft elections, log replication, and majority commitment."""
-
 import asyncio
 import logging
 import random
@@ -277,6 +275,28 @@ class RaftNode(raft_pb2_grpc.RaftServiceServicer):
         async with self.lock:
             if self.role != "leader" or self.term != term:
                 raise NotLeaderError(self.leader_id)
+
+    async def read_barrier(self, timeout=2.0):
+        # A fresh committed entry, rather than a cached role, confirms this read.
+        async with asyncio.timeout(timeout):
+            await self.wait_ready(timeout)
+            index = await self.propose(encode_command(NoOpCommand()), timeout)
+            await self.wait_applied(index, timeout)
+            return index
+
+    async def ReadBarrier(self, request, context):
+        await self._check_available(context)
+        if request.requester_id not in self.members:
+            await context.abort(grpc.StatusCode.INVALID_ARGUMENT, "Unknown Raft reader")
+        try:
+            budget = context.time_remaining()
+            index = await self.read_barrier(min(2.0, budget) if budget is not None else 2.0)
+            return raft_pb2.ReadBarrierResponse(read_index=index)
+        except (NotLeaderError, TimeoutError, RuntimeError):
+            await context.abort(grpc.StatusCode.UNAVAILABLE, "Could not confirm a Raft read")
+        except (sqlite3.Error, OverflowError) as error:
+            self._fail(error)
+            await context.abort(grpc.StatusCode.INTERNAL, "Could not persist the read barrier")
 
     async def _supervise(self):
         tasks = [asyncio.create_task(self._run())]

@@ -1,5 +1,3 @@
-"""Password verification and reads of replicated, persistent sessions."""
-
 import asyncio
 import json
 import os
@@ -16,6 +14,7 @@ from google.protobuf.empty_pb2 import Empty
 
 from backend.commands import CreateSessionCommand, RevokeSessionCommand
 from backend.mutations import route_write, submit_write
+from backend.reads import consistent_read
 from collab.auth.v1 import auth_pb2, auth_pb2_grpc
 
 SESSION_SECONDS = int(os.getenv("SESSION_SECONDS", "1800"))
@@ -72,6 +71,7 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
         }
 
     async def GetCurrentUser(self, request, context):
+        await consistent_read(self.raft, context)
         _, session = await self.require_session(context)
         return session["user"]
 
@@ -85,6 +85,8 @@ class AuthService(auth_pb2_grpc.AuthServiceServicer):
 
     async def WatchSession(self, request, context):
         while True:
+            next_check = time.monotonic() + 1
+            await consistent_read(self.raft, context)
             _, session = await self.require_session(context)
             yield session["user"]
-            await asyncio.sleep(1)
+            await asyncio.sleep(max(0, next_check - time.monotonic()))

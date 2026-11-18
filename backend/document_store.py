@@ -1,5 +1,3 @@
-"""SQLite application state and atomic progress through the committed Raft log."""
-
 from dataclasses import dataclass, replace
 import json
 import os

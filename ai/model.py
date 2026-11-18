@@ -1,5 +1,3 @@
-"""Local Qwen loading and one bounded generation; no hosted AI API."""
-
 import os
 from collab.ai.v1 import ai_pb2 as pb
 

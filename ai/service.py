@@ -1,5 +1,3 @@
-"""Keep blocking CPU inference off the gRPC event loop."""
-
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import grpc

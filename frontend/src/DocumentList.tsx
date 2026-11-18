@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { DocumentInfo } from './gen/collab/document/v1/document_pb'
 import { documentClient } from './rpc'
 
 import DocumentPreview from './DocumentPreview'
+import { retryRead } from './recovery'
 
 type Props = { token: string; pendingCount: number; onPendingChange: (count: number) => void }
 export default function DocumentList({ token, pendingCount, onPendingChange }: Props) {
@@ -12,25 +13,32 @@ export default function DocumentList({ token, pendingCount, onPendingChange }: P
   const [title, setTitle] = useState('')
   
   const [selected, setSelected] = useState<DocumentInfo | null>(null)
+  const reads = useRef(new AbortController())
+  useEffect(() => {
+    const controller = new AbortController()
+    reads.current = controller
+    return () => controller.abort()
+  }, [token])
 
   async function refresh() {
     setBusy(true)
     setError('')
 
+    const signal = reads.current.signal
     try {
-      const response = await documentClient.listDocuments(
+      const response = await retryRead(timeoutMs => documentClient.listDocuments(
         {},
         {
           headers: {
             authorization: `Bearer ${token}`,
           },
-          timeoutMs: 5000,
+          timeoutMs, signal,
         },
-      )
+      ), signal)
 
-      setDocuments(response.documents)
+      if (!signal.aborted) setDocuments(response.documents)
     } catch {
-      setError('Could not load documents. Check your connection and session.')
+      if (!signal.aborted) setError('Could not load documents. Check your connection and session.')
     } finally {
       setBusy(false)
     }

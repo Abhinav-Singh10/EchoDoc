@@ -1,5 +1,3 @@
-"""Durable Raft term, vote, and log. Protocol decisions belong to RaftNode."""
-
 from pathlib import Path
 import sqlite3
 

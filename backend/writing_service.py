@@ -1,9 +1,8 @@
-"""Authenticated forwarding from the application to the internal AI service."""
-
 import grpc
 from collab.ai.v1 import ai_pb2_grpc
 from ai.validation import validate
 from backend.document_store import DocumentStore, StoreError
+from backend.reads import consistent_read
 
 
 class WritingService(ai_pb2_grpc.WritingServiceServicer):
@@ -13,6 +12,7 @@ class WritingService(ai_pb2_grpc.WritingServiceServicer):
         self.client = ai_pb2_grpc.AIServiceStub(channel)
 
     async def GetLLMAnswer(self, request, context):
+        await consistent_read(self.auth.raft, context)
         await self.auth.require_session(context)
         await validate(request, context)
         try:
@@ -31,5 +31,12 @@ class WritingService(ai_pb2_grpc.WritingServiceServicer):
             )
         except grpc.aio.AioRpcError as error:
             await context.abort(error.code(), "AI service: " + error.details())
+        await consistent_read(self.auth.raft, context)
         await self.auth.require_session(context)
+        try:
+            revision = self.store.get_revision(request.document_id)
+        except StoreError as error:
+            await context.abort(grpc.StatusCode[error.code], str(error))
+        if revision != request.source_revision:
+            await context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Document changed; request a fresh result")
         return response

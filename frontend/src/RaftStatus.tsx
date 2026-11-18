@@ -37,10 +37,10 @@ export default function RaftStatus() {
   }, [])
 
   return (
-    <section className="raft-status" aria-label="Connected backend status">
+    <section className="raft-status" aria-label="Responding backend status">
       <p role="status">
         {unavailable ? 'Backend unavailable' : info ? (
-          <>Connected backend: <strong>{info.serverId}</strong>
+          <>Responding backend: <strong>{info.serverId}</strong>
             {' · '}Raft role: <strong>{info.raftRole}</strong>
             {' · '}Term: {info.raftTerm.toString()}
             {' · '}Known leader: {info.raftLeaderId || 'unknown'}
@@ -49,8 +49,8 @@ export default function RaftStatus() {
             {' · '}Applied index: {info.raftLastApplied.toString()}</>
         ) : 'Checking backend…'}
       </p>
-      <p className="raft-note">This is the connected backend’s view. Documents and sessions replicate;
-        writes forward to the leader. The gateway stays on app-1; local reads may lag.</p>
+      <p className="raft-note">This is the responding backend’s view. The gateway uses available backends;
+        writes forward to the leader and reads confirm Raft progress. Streams reconnect automatically.</p>
     </section>
   )
 }

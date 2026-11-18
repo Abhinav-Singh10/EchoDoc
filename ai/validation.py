@@ -1,5 +1,3 @@
-"""Shared request checks for the application and model services."""
-
 import grpc
 from collab.ai.v1 import ai_pb2 as pb
 
