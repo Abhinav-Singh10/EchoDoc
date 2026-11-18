@@ -7,7 +7,26 @@ import "google/protobuf/timestamp.proto";
 
 service SystemService {
   rpc GetServerInfo(google.protobuf.Empty) returns (ServerInfo);
+  rpc GetClusterInfo(google.protobuf.Empty) returns (ClusterInfo);
   rpc WatchEvents(google.protobuf.Empty) returns (stream ServerEvent);
+}
+
+message ClusterInfo {
+  string responding_server_id = 1;
+  repeated ClusterNodeStatus nodes = 2;
+}
+
+message ClusterNodeStatus {
+  string node_id = 1;
+  oneof result {
+    ServerInfo info = 2;
+    NodeStatusError error = 3;
+  }
+}
+
+message NodeStatusError {
+  string code = 1;
+  string message = 2;
 }
 
 message ServerInfo {

@@ -19,13 +19,10 @@ function App() {
 
   return (
     <main>
-      <header>
-        <h1>EchoDoc</h1>
-        <p>Collaborative notes with real-time editing and local AI assistance.</p>
-      </header>
-      <RaftStatus />
       <LoginPanel session={session} setSession={changeSession} canLogout={pendingCount === 0}
-        lockedUsername={pendingCount ? lastSession?.user?.username : undefined} />
+        lockedUsername={pendingCount ? lastSession?.user?.username : undefined}>
+        <RaftStatus />
+      </LoginPanel>
         
         {lastSession && (
          <DocumentList key={lastSession.user?.userId} token={session?.sessionToken ?? ""} pendingCount={pendingCount} onPendingChange={setPendingCount} />

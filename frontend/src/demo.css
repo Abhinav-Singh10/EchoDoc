@@ -2,8 +2,30 @@
 * { box-sizing: border-box; }
 #root { width: 100%; max-width: 1500px; border: 0; text-align: left; padding: 28px 32px; }
 header { margin-bottom: 22px; }
+.app-title-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.app-title-row > button { margin: 0; flex-shrink: 0; }
 .raft-status { padding: 10px 16px; margin-bottom: 20px; border: 1px solid #dce3e1; border-radius: 9px; background: white; font-size: 13px; }
-.raft-note { color: #5e7a69; font-size: 12px; }
+.raft-error { margin: 8px 0; overflow-wrap: anywhere; }
+.raft-error summary { cursor: pointer; }
+.raft-collapse > summary { cursor: pointer; padding: 8px 0; }
+.raft-collapse > summary h2 { display: inline; font-size: 16px; margin: 0; }
+.raft-collapse > summary:focus-visible { outline: 3px solid #80b8aa; outline-offset: 2px; }
+.raft-nodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 14px 0; }
+.raft-node { min-width: 0; padding: 14px; border: 1px solid #dce3e1; border-radius: 9px; background: white; }
+.raft-node-leader { background: #e9f2ec; }
+.raft-node-failed { background: #fff3e5; }
+.raft-node h3 { margin: 6px 0; font-size: 15px; overflow-wrap: anywhere; }
+.raft-reachability,.raft-term { color: #5e7a69; font-size: 12px; }
+.raft-reachability { display: flex; align-items: center; gap: 6px; }
+.raft-dot { width: 7px; height: 7px; border-radius: 50%; background: #254f43; flex-shrink: 0; }
+.raft-node-failed .raft-dot { background: #86512c; }
+.raft-role { margin: 8px 0 12px; }
+.raft-counters { margin: 8px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.raft-counters > div { display: flex; justify-content: space-between; gap: 8px; }
+.raft-counters dd { margin: 0; }
+.raft-summary { display: flex; flex-wrap: wrap; gap: 8px 24px; border-top: 1px solid #dce3e1; padding-top: 10px; }
+.raft-summary p { margin: 0; }
+@media(max-width:500px) { .raft-nodes { grid-template-columns: 1fr; } }
 header h1 { font-size: 42px; color: #254f43; margin: 6px 0; }
 .eyebrow { font-size: 11px; letter-spacing: 2px; color: #527b6e; font-weight: 700; }
 h2,h3 { color: #253c45; }
@@ -18,9 +40,8 @@ button:focus-visible,input:focus-visible { outline: 3px solid #80b8aa; outline-o
 input:not([type=checkbox]) { display: block; width: 100%; padding: 8px; border: 1px solid #bccdd0; border-radius: 5px; background: white; color: #253c45; margin: 5px 0 10px; }
 label { font-size: 13px; font-weight: 600; }
 [role=alert] { padding: 10px; background: #fff1e9; color: #873c27; border-radius: 5px; overflow-wrap: anywhere; }
-.account-panel { border: 1px solid #dce3e1; background: white; border-radius: 9px; padding: 16px 20px; margin-bottom: 20px; }
-.account-panel h2 { font-size: 16px; }
-.login-card { width: 100%; max-width: 360px; min-height: 360px; margin: 48px auto; padding: 28px; }
+.session-alert { margin-bottom: 20px; }
+.login-card { width: 100%; max-width: 360px; min-height: 360px; margin: 48px auto; padding: 28px; border: 1px solid #dce3e1; background: white; border-radius: 9px; }
 .login-card h2 { font-size: 24px; margin: 0 0 24px; }
 .login-card fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 16px; }
 .login-card label { display: block; }

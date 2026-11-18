@@ -1,32 +1,31 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import type { LoginResponse } from "./gen/collab/auth/v1/auth_pb";
 import { authClient } from "./rpc";
-import { useEffect, useRef, useState } from "react";
-import { backoff, pause, retryable, retryRead } from "./recovery";
+import { useEffect, useState } from "react";
+import type { ReactNode } from "react";
+import { backoff, pause, retryable } from "./recovery";
 
 type LoginPanelProps = {
+  children: ReactNode;
   canLogout: boolean;
   lockedUsername?: string;
   session: LoginResponse | null;
   setSession: (session: LoginResponse | null) => void;
 };
 
-function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPanelProps) {
+function LoginPanel({ session, setSession, canLogout, lockedUsername, children }: LoginPanelProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [monitorError, setMonitorError] = useState("");
-  const [notice, setNotice] = useState("");
+  const [monitorStopped, setMonitorStopped] = useState(false);
   const token = session?.sessionToken;
   const [watchAttempt, setWatchAttempt] = useState(0);
-  const monitor = useRef<AbortController | null>(null);
 
   useEffect(() => {
     if (!token) return;
-
     const controller = new AbortController();
-    monitor.current = controller;
 
     async function watchSession() {
       let failures = 0;
@@ -41,38 +40,30 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPan
           }
         }, 250);
         try {
-          const stream = authClient.watchSession(
-            {},
-            {
-              headers: { authorization: `Bearer ${token}` },
-              signal: current.signal,
-            },
-          );
+          const stream = authClient.watchSession({}, {
+            headers: { authorization: `Bearer ${token}` },
+            signal: current.signal,
+          });
           for await (const user of stream) {
-            if (controller.signal.aborted) return;
+            if (controller.signal.aborted || !user) return;
             lastEvent = performance.now();
             failures = 0;
             setMonitorError("");
-            setNotice(`Session active for ${user.username}.`);
           }
-
           if (controller.signal.aborted) return;
           throw new ConnectError("Session stream ended", Code.Unavailable);
         } catch (err) {
           if (controller.signal.aborted) return;
           const error = current.signal.aborted ? current.signal.reason : err;
-
           if (error instanceof ConnectError && error.code === Code.Unauthenticated) {
-            setNotice("");
             setSession(null);
             setMonitorError("Your session expired or is no longer valid. Log in again.");
             return;
           } else if (!retryable(error)) {
-            setNotice("");
-            setMonitorError("Session monitoring stopped. Check session to try again.");
+            setMonitorStopped(true);
+            setMonitorError("Session monitoring stopped. Retry the connection.");
             return;
           } else {
-            setNotice("");
             setMonitorError("Session connection lost. Reconnecting automatically…");
           }
         } finally {
@@ -84,139 +75,80 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPan
         catch { return; }
       }
     }
-  
+
     function leavePage() {
-      controller.abort()
-      setSession(null)
-      setNotice('')
+      controller.abort();
+      setSession(null);
     }
-  
-    watchSession()
-    window.addEventListener('pagehide', leavePage)
-  
+    void watchSession();
+    window.addEventListener("pagehide", leavePage);
     return () => {
-      controller.abort()
-      window.removeEventListener('pagehide', leavePage)
-    }
-  }, [token, setSession, watchAttempt])
-  
+      controller.abort();
+      window.removeEventListener("pagehide", leavePage);
+    };
+  }, [token, setSession, watchAttempt]);
+
   async function login() {
-    setMonitorError('')
-  
-    setBusy(true)
-    setError('')
-    setNotice('')
+    setMonitorError("");
+    setMonitorStopped(false);
+    setBusy(true);
+    setError("");
     try {
       const response = await authClient.login(
-        { username: lockedUsername || username, password },
-        { timeoutMs: 5000 },
-      )
-      setSession(response)
-      setPassword('')
+        { username: lockedUsername || username, password }, { timeoutMs: 5000 },
+      );
+      setSession(response);
+      setPassword("");
     } catch (err) {
-      if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setError('Incorrect username or password.')
-      } else {
-        setError('Login failed. Check Python and Envoy.')
-      }
+      setError(err instanceof ConnectError && err.code === Code.Unauthenticated
+        ? "Incorrect username or password."
+        : "Login failed. Check Python and Envoy.");
     } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
   async function logout() {
-    if (!session || !canLogout) return
-
-    setBusy(true)
-    setError('')
-    setNotice('')
+    if (!session || !canLogout || busy) return;
+    setBusy(true);
+    setError("");
     try {
-      await authClient.logout(
-        {},
-        {
-          headers: {
-            authorization: `Bearer ${session.sessionToken}`,
-          },
-          timeoutMs: 5000,
-        },
-      )
-      setNotice('')
-      setMonitorError('')
-      setSession(null)
+      await authClient.logout({}, {
+        headers: { authorization: `Bearer ${session.sessionToken}` }, timeoutMs: 5000,
+      });
+      setMonitorError("");
+      setMonitorStopped(false);
+      setSession(null);
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setSession(null)
-        setError('Your session is no longer valid. Log in again.')
+        setSession(null);
+        setError("Your session is no longer valid. Log in again.");
       } else {
-        setError('Logout failed. Check Python and Envoy, then retry.')
+        setError("Logout failed. Check Python and Envoy, then retry.");
       }
     } finally {
-      setBusy(false)
-    }
-  }
-
-  async function checkSession() {
-    if (!session) return
-  
-    setBusy(true)
-    setError('')
-    setNotice('')
-  
-    const signal = monitor.current?.signal;
-    try {
-      const user = await retryRead(timeoutMs => authClient.getCurrentUser(
-        {},
-        {
-          headers: {
-            authorization: `Bearer ${session.sessionToken}`,
-          },
-          timeoutMs, signal,
-        },
-      ), signal)
-      if (signal?.aborted) return
-  
-      setNotice(`Session accepted for ${user.username}.Restarting monitor...`)
-      setWatchAttempt(attempt => attempt+1)
-    } catch (err) {
-      if (signal?.aborted) return
-      if (err instanceof ConnectError && err.code === Code.Unauthenticated) {
-        setSession(null)
-        setError('Your session expired or is no longer valid. Log in again.')
-      } else {
-        setError('Could not check the session. Check Python and Envoy.')
-      }
-    } finally {
-      setBusy(false)
+      setBusy(false);
     }
   }
 
   return (
-    <section className={`account-panel ${session? "": "login-card"}`}>
-      <h2>{session? "Account":"Log in"}</h2>
+    <>
+      <header>
+        <div className="app-title-row">
+          <h1>EchoDoc</h1>
+          {session && <button type="button" onClick={logout} disabled={busy || !canLogout}>
+            {busy ? "Logging out…" : "Log out"}
+          </button>}
+        </div>
+        <p>Collaborative notes with real-time editing and local AI assistance.</p>
+      </header>
 
-      {session ? (
-        <div>
-        <p>Logged in as {session.user?.username}</p>
-      
-        <button onClick={checkSession} disabled={busy}>
-          Check session
-        </button>
-      
-        <button onClick={logout} disabled={busy || !canLogout}>
-          Log out
-        </button>
-      
-        {busy && <p role="status">Working…</p>}
-      </div>
-      ) : (
-        <form
-          onSubmit={event => {
-            event.preventDefault()
-            login()
-          }}
-        >
+      {children}
+
+      {!session && <section className="login-card">
+        <h2>Log in</h2>
+        <form onSubmit={event => { event.preventDefault(); void login(); }}>
           <fieldset disabled={busy} aria-label="Log in">
-
             <label>
               Username
               <input
@@ -227,29 +159,32 @@ function LoginPanel({ session, setSession, canLogout, lockedUsername }: LoginPan
                 required
               />
             </label>
-
             <label>
               Password
               <input
                 type="password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}                
+                onChange={event => setPassword(event.target.value)}
                 autoComplete="current-password"
                 required
               />
             </label>
-
-            <button type="submit">
-              {busy ? 'Logging in…' : 'Log in'}
-            </button>
+            <button type="submit">{busy ? "Logging in…" : "Log in"}</button>
           </fieldset>
         </form>
-      )}
+        {(error || monitorError) && <p role="alert">{error || monitorError}</p>}
+      </section>}
 
-      {(error || monitorError) && <p role="alert">{error || monitorError}</p>}
-      {notice && <p role="status">{notice}</p>}
-    </section>
-  )
+      {session && (error || monitorError) && <div className="session-alert" role="alert">
+        <p>{error || monitorError}</p>
+        {monitorStopped && <button type="button" onClick={() => {
+          setMonitorStopped(false);
+          setMonitorError("");
+          setWatchAttempt(attempt => attempt + 1);
+        }}>Retry connection</button>}
+      </div>}
+    </>
+  );
 }
 
-export default LoginPanel
+export default LoginPanel;
